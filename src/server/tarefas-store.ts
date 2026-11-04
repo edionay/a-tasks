@@ -24,5 +24,11 @@ const estadoGlobal = globalThis as typeof globalThis & {
   armazenamentoTarefas?: ArmazenamentoTarefas;
 };
 
-export const armazenamentoTarefas =
-  (estadoGlobal.armazenamentoTarefas ??= criarArmazenamentoTarefas());
+if (
+  estadoGlobal.armazenamentoTarefas === undefined ||
+  estadoGlobal.armazenamentoTarefas === null
+) {
+  estadoGlobal.armazenamentoTarefas = criarArmazenamentoTarefas();
+}
+
+export const armazenamentoTarefas = estadoGlobal.armazenamentoTarefas;
