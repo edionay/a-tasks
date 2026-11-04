@@ -56,3 +56,30 @@ O título recebe `trim` e deve ter de 1 a 120 caracteres após a normalização.
 A descrição aceita até 2.000 caracteres e preserva espaços e quebras de linha.
 A criação aceita apenas título e descrição. A atualização exige também o id
 da tarefa e não aceita uma nova data de criação. Campos adicionais são rejeitados.
+
+## API de tarefas
+
+A API usa tRPC no endpoint `/api/trpc`, com validação no servidor.
+
+### Criar tarefa
+
+A procedure `tarefas.criar` recebe `titulo` e `descricao` opcional e retorna a
+tarefa criada com `id` e `dataCriacao` gerados no servidor.
+
+```sh
+curl http://localhost:3000/api/trpc/tarefas.criar \
+  -H 'Content-Type: application/json' \
+  --data '{"titulo":"Revisar documentação","descricao":"Conferir os comandos de execução."}'
+```
+
+A resposta contém a tarefa em `result.data`. Entradas inválidas retornam HTTP 400,
+código `BAD_REQUEST`, mensagem em português e erros associados aos campos em
+`error.data.errosCampos`. Erros internos retornam uma mensagem genérica, sem
+expor detalhes do servidor ou stack traces.
+
+### Armazenamento
+
+As tarefas ficam somente na memória do processo Node.js, sem banco, arquivos ou
+armazenamento no navegador. O estado começa vazio e é compartilhado por quem
+acessa a mesma instância. Reiniciar o processo apaga as tarefas; processos ou
+instâncias diferentes não compartilham os dados.
