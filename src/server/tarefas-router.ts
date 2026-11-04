@@ -23,7 +23,7 @@ const routerTarefas = criarRouter({
       const tarefa = contexto.tarefas.buscarPorId(entrada.id);
 
       if (tarefa === undefined) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Tarefa não encontrada." });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
       }
 
       return tarefa;

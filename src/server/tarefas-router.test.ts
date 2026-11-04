@@ -9,43 +9,43 @@ function criarCaller() {
   return appRouter.createCaller({ tarefas: criarArmazenamentoTarefas() });
 }
 
-describe("criação de tarefas pelo router", () => {
-  it("retorna tarefa normalizada com UUID e timestamp gerados no servidor", async () => {
+describe("task creation through the router", () => {
+  it("returns a normalized task with a server-generated UUID and timestamp", async () => {
     const caller = criarCaller();
     const inicio = Date.now();
     const tarefa = await caller.tarefas.criar({
-      titulo: "  Revisar tarefas  ",
-      descricao: "Conferir os campos.",
+      titulo: "  Review tasks  ",
+      descricao: "Check the fields.",
     });
     const fim = Date.now();
 
     assert.deepEqual(schemaTarefa.parse(tarefa), tarefa);
-    assert.equal(tarefa.titulo, "Revisar tarefas");
-    assert.equal(tarefa.descricao, "Conferir os campos.");
+    assert.equal(tarefa.titulo, "Review tasks");
+    assert.equal(tarefa.descricao, "Check the fields.");
     assert.ok(Date.parse(tarefa.dataCriacao) >= inicio);
     assert.ok(Date.parse(tarefa.dataCriacao) <= fim);
   });
 
-  it("cria tarefas sem descrição e com identificadores distintos", async () => {
+  it("creates tasks with distinct IDs and no description", async () => {
     const caller = criarCaller();
-    const primeira = await caller.tarefas.criar({ titulo: "Revisar tarefas" });
-    const segunda = await caller.tarefas.criar({ titulo: "Revisar tarefas" });
+    const primeira = await caller.tarefas.criar({ titulo: "Review tasks" });
+    const segunda = await caller.tarefas.criar({ titulo: "Review tasks" });
 
     assert.notEqual(primeira.id, segunda.id);
     assert.equal(primeira.descricao, undefined);
     assert.equal(segunda.descricao, undefined);
   });
 
-  it("rejeita entradas inválidas com BAD_REQUEST", async () => {
+  it("rejects invalid input with BAD_REQUEST", async () => {
     const caller = criarCaller();
 
     for (const entrada of [
       {},
       { titulo: "  " },
       { titulo: "a".repeat(121) },
-      { titulo: "Revisar tarefas", descricao: "a".repeat(2_001) },
-      { titulo: "Revisar tarefas", id: "550e8400-e29b-41d4-a716-446655440000" },
-      { titulo: "Revisar tarefas", dataCriacao: "2026-11-04T21:00:00Z" },
+      { titulo: "Review tasks", descricao: "a".repeat(2_001) },
+      { titulo: "Review tasks", id: "550e8400-e29b-41d4-a716-446655440000" },
+      { titulo: "Review tasks", dataCriacao: "2026-11-04T21:00:00Z" },
     ]) {
       await assert.rejects(
         caller.tarefas.criar(entrada as CriacaoTarefa),
@@ -55,39 +55,39 @@ describe("criação de tarefas pelo router", () => {
   });
 });
 
-describe("leitura de tarefas pelo router", () => {
-  it("retorna lista vazia quando nenhuma tarefa foi criada", async () => {
+describe("task reads through the router", () => {
+  it("returns an empty list when no tasks exist", async () => {
     assert.deepEqual(await criarCaller().tarefas.listar(), []);
   });
 
-  it("lista as tarefas com os dados registrados na criação", async () => {
+  it("lists tasks with the data recorded at creation", async () => {
     const caller = criarCaller();
     const criada = await caller.tarefas.criar({
-      titulo: "Revisar documentação",
-      descricao: "Conferir os comandos.",
+      titulo: "Review documentation",
+      descricao: "Check the commands.",
     });
 
     assert.deepEqual(await caller.tarefas.listar(), [criada]);
     assert.deepEqual(await caller.tarefas.buscarPorId({ id: criada.id }), criada);
   });
 
-  it("lista as tarefas mais recentes primeiro", async (contexto) => {
+  it("lists the most recent tasks first", async (contexto) => {
     contexto.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-04T21:00:00Z") });
     const caller = criarCaller();
-    const antiga = await caller.tarefas.criar({ titulo: "Tarefa antiga" });
+    const antiga = await caller.tarefas.criar({ titulo: "Older task" });
     contexto.mock.timers.tick(1_000);
-    const recente = await caller.tarefas.criar({ titulo: "Tarefa recente" });
+    const recente = await caller.tarefas.criar({ titulo: "Newer task" });
 
     assert.deepEqual(await caller.tarefas.listar(), [recente, antiga]);
   });
 
-  it("ordena por id quando as datas de criação são iguais", async (contexto) => {
+  it("sorts by ID when creation dates match", async (contexto) => {
     contexto.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-04T21:00:00Z") });
     const caller = criarCaller();
     const tarefas = [];
 
     for (let indice = 0; indice < 5; indice += 1) {
-      tarefas.push(await caller.tarefas.criar({ titulo: `Tarefa ${indice}` }));
+      tarefas.push(await caller.tarefas.criar({ titulo: `Task ${indice}` }));
     }
 
     const idsEsperados = tarefas.map((tarefa) => tarefa.id).sort();
@@ -97,7 +97,7 @@ describe("leitura de tarefas pelo router", () => {
     assert.deepEqual(listagem.map((tarefa) => tarefa.id), idsEsperados);
   });
 
-  it("retorna NOT_FOUND quando o UUID não pertence a uma tarefa", async () => {
+  it("returns NOT_FOUND when no task has the supplied UUID", async () => {
     const caller = criarCaller();
 
     await assert.rejects(
@@ -106,34 +106,34 @@ describe("leitura de tarefas pelo router", () => {
     );
   });
 
-  it("valida o identificador antes da consulta", async () => {
+  it("validates the ID before looking up a task", async () => {
     const caller = criarCaller();
 
     await assert.rejects(
-      caller.tarefas.buscarPorId({ id: "invalido" }),
+      caller.tarefas.buscarPorId({ id: "invalid" }),
       (erro) => erro instanceof TRPCError && erro.code === "BAD_REQUEST",
     );
   });
 
-  it("mantém armazenamentos de teste independentes", async () => {
+  it("keeps test stores independent", async () => {
     const primeiro = criarCaller();
     const segundo = criarCaller();
-    const tarefa = await primeiro.tarefas.criar({ titulo: "Tarefa isolada" });
+    const tarefa = await primeiro.tarefas.criar({ titulo: "Isolated task" });
 
     assert.deepEqual(await primeiro.tarefas.listar(), [tarefa]);
     assert.deepEqual(await segundo.tarefas.listar(), []);
   });
 
-  it("preserva os dados armazenados quando um resultado é alterado", async () => {
+  it("preserves stored data when a returned object is changed", async () => {
     const armazenamento = criarArmazenamentoTarefas();
-    const criada = armazenamento.criar({ titulo: "Título original" });
-    criada.titulo = "Alteração no resultado da criação";
+    const criada = armazenamento.criar({ titulo: "Original title" });
+    criada.titulo = "Changed creation result";
     const listagem = armazenamento.listar();
-    listagem[0].titulo = "Alteração na lista";
+    listagem[0].titulo = "Changed list item";
     const consultada = armazenamento.buscarPorId(criada.id);
     assert.ok(consultada);
-    consultada.titulo = "Alteração no resultado da consulta";
+    consultada.titulo = "Changed lookup result";
 
-    assert.equal(armazenamento.buscarPorId(criada.id)?.titulo, "Título original");
+    assert.equal(armazenamento.buscarPorId(criada.id)?.titulo, "Original title");
   });
 });

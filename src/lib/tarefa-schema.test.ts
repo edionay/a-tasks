@@ -10,65 +10,65 @@ import {
 const id = "550e8400-e29b-41d4-a716-446655440000";
 const dataCriacao = "2026-11-04T21:00:00.000Z";
 
-describe("criação de tarefa", () => {
-  it("remove espaços das extremidades do título e preserva seu conteúdo", () => {
+describe("task creation", () => {
+  it("trims the title without changing its content", () => {
     const tarefa = schemaCriacaoTarefa.parse({
-      titulo: "  Revisar  documentação  ",
-      descricao: "Conferir os comandos de execução.\nPreservar as quebras de linha.",
+      titulo: "  Review  documentation  ",
+      descricao: "Check the run commands.\nPreserve line breaks.",
     });
 
     assert.deepEqual(tarefa, {
-      titulo: "Revisar  documentação",
-      descricao: "Conferir os comandos de execução.\nPreservar as quebras de linha.",
+      titulo: "Review  documentation",
+      descricao: "Check the run commands.\nPreserve line breaks.",
     });
   });
 
-  it("aceita descrição ausente ou vazia", () => {
-    assert.deepEqual(schemaCriacaoTarefa.parse({ titulo: "Revisar tarefas" }), {
-      titulo: "Revisar tarefas",
+  it("accepts a missing or empty description", () => {
+    assert.deepEqual(schemaCriacaoTarefa.parse({ titulo: "Review tasks" }), {
+      titulo: "Review tasks",
     });
     assert.deepEqual(
-      schemaCriacaoTarefa.parse({ titulo: "Revisar tarefas", descricao: "" }),
-      { titulo: "Revisar tarefas", descricao: "" },
+      schemaCriacaoTarefa.parse({ titulo: "Review tasks", descricao: "" }),
+      { titulo: "Review tasks", descricao: "" },
     );
   });
 
   for (const titulo of [undefined, "", " \t\n ", null, 123]) {
-    it(`rejeita título inválido: ${JSON.stringify(titulo)}`, () => {
+    it(`rejects an invalid title: ${JSON.stringify(titulo)}`, () => {
       const resultado = schemaCriacaoTarefa.safeParse({ titulo });
 
       assert.ok(!resultado.success);
       assert.deepEqual(resultado.error.issues[0].path, ["titulo"]);
-      assert.equal(resultado.error.issues[0].message, "Informe um título.");
+      assert.equal(resultado.error.issues[0].message, "Enter a title.");
     });
   }
 
-  it("aceita os limites exatos de título e descrição", () => {
+  it("accepts title and description at their length limits", () => {
     const entrada = { titulo: "a".repeat(120), descricao: "b".repeat(2_000) };
 
     assert.deepEqual(schemaCriacaoTarefa.parse(entrada), entrada);
   });
 
-  it("aplica o limite do título depois de remover espaços das extremidades", () => {
+  it("checks title length after trimming", () => {
     const titulo = "a".repeat(120);
 
     assert.equal(schemaCriacaoTarefa.parse({ titulo: ` ${titulo} ` }).titulo, titulo);
   });
 
-  it("rejeita título acima do limite com erro associado ao campo", () => {
+  it("returns a field error when the title exceeds its limit", () => {
     const resultado = schemaCriacaoTarefa.safeParse({ titulo: "a".repeat(121) });
 
     assert.ok(!resultado.success);
     assert.deepEqual(resultado.error.issues[0].path, ["titulo"]);
     assert.equal(
       resultado.error.issues[0].message,
-      "O título deve ter no máximo 120 caracteres.",
+      "Title must be at most 120 characters.",
     );
   });
 
-  it("rejeita descrição acima do limite com erro associado ao campo", () => {
+  it("returns a field error when the description exceeds its limit", () => {
     const resultado = schemaCriacaoTarefa.safeParse({
-      titulo: "Revisar tarefas",
+      titulo: "Review tasks",
       descricao: "a".repeat(2_001),
     });
 
@@ -76,24 +76,24 @@ describe("criação de tarefa", () => {
     assert.deepEqual(resultado.error.issues[0].path, ["descricao"]);
     assert.equal(
       resultado.error.issues[0].message,
-      "A descrição deve ter no máximo 2000 caracteres.",
+      "Description must be at most 2000 characters.",
     );
   });
 
-  it("rejeita descrição que não seja texto", () => {
+  it("rejects a non-string description", () => {
     const resultado = schemaCriacaoTarefa.safeParse({
-      titulo: "Revisar tarefas",
+      titulo: "Review tasks",
       descricao: 123,
     });
 
     assert.ok(!resultado.success);
-    assert.equal(resultado.error.issues[0].message, "A descrição deve ser um texto.");
+    assert.equal(resultado.error.issues[0].message, "Description must be text.");
   });
 
   for (const campo of [{ id }, { dataCriacao }, { concluida: true }]) {
-    it(`rejeita o campo não permitido ${Object.keys(campo)[0]}`, () => {
+    it(`rejects the unexpected field ${Object.keys(campo)[0]}`, () => {
       const resultado = schemaCriacaoTarefa.safeParse({
-        titulo: "Revisar tarefas",
+        titulo: "Review tasks",
         ...campo,
       });
 
@@ -102,20 +102,20 @@ describe("criação de tarefa", () => {
     });
   }
 
-  it("rejeita dados ausentes ou em formato diferente de objeto", () => {
-    for (const entrada of [undefined, null, "tarefa", []]) {
+  it("rejects missing data and non-object input", () => {
+    for (const entrada of [undefined, null, "task", []]) {
       assert.equal(schemaCriacaoTarefa.safeParse(entrada).success, false);
     }
   });
 });
 
-describe("identificação de tarefa", () => {
-  it("aceita UUID válido", () => {
+describe("task identification", () => {
+  it("accepts a valid UUID", () => {
     assert.deepEqual(schemaIdentificacaoTarefa.parse({ id }), { id });
   });
 
-  it("rejeita identificador ausente, vazio ou fora do formato UUID", () => {
-    for (const entrada of [{}, { id: "" }, { id: "inexistente" }]) {
+  it("rejects a missing, empty or malformed UUID", () => {
+    for (const entrada of [{}, { id: "" }, { id: "missing" }]) {
       const resultado = schemaIdentificacaoTarefa.safeParse(entrada);
 
       assert.ok(!resultado.success);
@@ -123,39 +123,39 @@ describe("identificação de tarefa", () => {
     }
   });
 
-  it("rejeita campos adicionais na identificação", () => {
+  it("rejects extra fields in an identification request", () => {
     assert.equal(
-      schemaIdentificacaoTarefa.safeParse({ id, titulo: "Revisar tarefas" }).success,
+      schemaIdentificacaoTarefa.safeParse({ id, titulo: "Review tasks" }).success,
       false,
     );
   });
 });
 
-describe("atualização de tarefa", () => {
-  it("exige id e título, com descrição opcional", () => {
+describe("task update", () => {
+  it("requires an ID and title with an optional description", () => {
     assert.deepEqual(
-      schemaAtualizacaoTarefa.parse({ id, titulo: "  Revisar contrato  " }),
-      { id, titulo: "Revisar contrato" },
+      schemaAtualizacaoTarefa.parse({ id, titulo: "  Review the contract  " }),
+      { id, titulo: "Review the contract" },
     );
   });
 
-  it("reutiliza a validação dos campos na atualização", () => {
+  it("validates fields when updating a task", () => {
     for (const entrada of [
-      { titulo: "Revisar contrato" },
+      { titulo: "Review the contract" },
       { id },
-      { id: "invalido", titulo: "Revisar contrato" },
+      { id: "invalid", titulo: "Review the contract" },
       { id, titulo: "   " },
       { id, titulo: "a".repeat(121) },
-      { id, titulo: "Revisar contrato", descricao: "a".repeat(2_001) },
+      { id, titulo: "Review the contract", descricao: "a".repeat(2_001) },
     ]) {
       assert.equal(schemaAtualizacaoTarefa.safeParse(entrada).success, false);
     }
   });
 
-  it("impede o envio de uma nova data de criação", () => {
+  it("rejects a creation date supplied for an update", () => {
     const resultado = schemaAtualizacaoTarefa.safeParse({
       id,
-      titulo: "Revisar contrato",
+      titulo: "Review the contract",
       dataCriacao,
     });
 
@@ -164,26 +164,26 @@ describe("atualização de tarefa", () => {
   });
 });
 
-describe("tarefa completa", () => {
-  it("inclui identificador e data UTC no contrato", () => {
-    const tarefa = { id, titulo: "Revisar contrato", dataCriacao };
+describe("complete task", () => {
+  it("includes an ID and UTC creation date", () => {
+    const tarefa = { id, titulo: "Review the contract", dataCriacao };
 
     assert.deepEqual(schemaTarefa.parse(tarefa), tarefa);
   });
 
-  it("rejeita tarefa sem os metadados obrigatórios", () => {
-    assert.equal(schemaTarefa.safeParse({ titulo: "Revisar contrato" }).success, false);
+  it("rejects a task without its required metadata", () => {
+    assert.equal(schemaTarefa.safeParse({ titulo: "Review the contract" }).success, false);
   });
 
-  it("rejeita data inválida ou sem indicação de UTC", () => {
+  it("rejects an invalid date or a date without UTC notation", () => {
     for (const data of [
-      "invalida",
+      "invalid",
       "2026-02-30T21:00:00Z",
       "2026-11-04T21:00:00",
       "2026-11-04T18:00:00-03:00",
     ]) {
       assert.equal(
-        schemaTarefa.safeParse({ id, titulo: "Revisar contrato", dataCriacao: data })
+        schemaTarefa.safeParse({ id, titulo: "Review the contract", dataCriacao: data })
           .success,
         false,
       );
