@@ -38,6 +38,31 @@ npm start
 
 Tests use `node:test` and assertions from `node:assert/strict`.
 
+### SSR integration test
+
+Build the app and start the production server:
+
+```sh
+npm run build
+npm start
+```
+
+In another terminal, run:
+
+```sh
+npm run test:integration
+```
+
+The test creates a temporary task through HTTP, checks its title, description
+and date in the initial page HTML, then updates and deletes it. It removes the
+task after the test. To use another server address, set `TAREFAS_TEST_URL`.
+
+## Task list
+
+The home page loads tasks on the server through a tRPC caller. Each request
+reads the same in-memory store used by the HTTP API. Titles, optional descriptions
+and creation dates are included in the initial HTML. Dates are displayed in UTC.
+
 ## Task data
 
 Schemas and input rules live in `src/lib/tarefa-schema.ts`.
