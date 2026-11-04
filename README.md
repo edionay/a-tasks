@@ -43,3 +43,16 @@ TypeScript pelo `tsx`. Arquivos de teste usam o sufixo `.test.ts` e ficam
 próximos do módulo testado em `src/`.
 
 Os testes usam `node:test` e as assertions de `node:assert/strict`.
+
+## Contrato de tarefas
+
+O contrato e as regras de entrada ficam em `src/lib/tarefa-schema.ts`.
+Os tipos TypeScript são inferidos dos schemas Zod.
+
+Uma tarefa contém `id` no formato UUID, `titulo`, `descricao` opcional e
+`dataCriacao` como timestamp ISO 8601 em UTC.
+
+O título recebe `trim` e deve ter de 1 a 120 caracteres após a normalização.
+A descrição aceita até 2.000 caracteres e preserva espaços e quebras de linha.
+A criação aceita apenas título e descrição. A atualização exige também o id
+da tarefa e não aceita uma nova data de criação. Campos adicionais são rejeitados.
