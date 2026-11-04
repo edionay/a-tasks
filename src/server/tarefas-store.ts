@@ -49,6 +49,10 @@ export function criarArmazenamentoTarefas() {
       return { ...atualizada };
     },
 
+    excluir(id: string): boolean {
+      return tarefas.delete(id);
+    },
+
     buscarPorId(id: string): Tarefa | undefined {
       const tarefa = tarefas.get(id);
 

@@ -112,6 +112,20 @@ Use the ID of an existing task. The response contains the updated task in
 `result.data`. A missing task returns HTTP 404 (`NOT_FOUND`). Invalid input
 returns HTTP 400 (`BAD_REQUEST`) and leaves the stored task unchanged.
 
+### Delete a task
+
+`tarefas.excluir` accepts an `id` and returns `{ id }` after removing the task.
+Use the ID of an existing task:
+
+```sh
+curl http://localhost:3000/api/trpc/tarefas.excluir \
+  -H 'Content-Type: application/json' \
+  --data '{"id":"550e8400-e29b-41d4-a716-446655440000"}'
+```
+
+A missing or already deleted task returns HTTP 404 (`NOT_FOUND`). An invalid UUID
+returns HTTP 400 (`BAD_REQUEST`). Other tasks remain unchanged.
+
 ### Storage
 
 Tasks exist only in the memory of the Node.js process. No database, files or
