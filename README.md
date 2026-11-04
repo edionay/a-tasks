@@ -56,12 +56,21 @@ npm run test:integration
 The test creates a temporary task through HTTP, checks its title, description
 and date in the initial page HTML, then updates and deletes it. It removes the
 task after the test. To use another server address, set `TASKS_TEST_URL`.
+It also checks creation and validation errors through the typed tRPC HTTP client.
 
 ## Task list
 
 The home page loads tasks on the server through a tRPC caller. Each request
 reads the same in-memory store used by the HTTP API. Titles, optional descriptions
 and creation dates are included in the initial HTML. Dates are displayed in UTC.
+
+## Create tasks
+
+Select "New task" on the home page. The form validates the title and description
+with the same schemas used by the server. Saving sends a tRPC HTTP mutation,
+disables the form while the request is pending and returns to the updated list
+with a confirmation message. If saving fails, the entered values remain available
+for another attempt. "Cancel" returns to the list without saving.
 
 ## Task data
 

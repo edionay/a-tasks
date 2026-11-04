@@ -15,6 +15,7 @@
     "test:integration": "node --import tsx --test tests/ssr.integration.ts"
   },
   "dependencies": {
+    "@trpc/client": "11.24.0",
     "@trpc/server": "11.24.0",
     "next": "15.5.29",
     "react": "19.1.10",

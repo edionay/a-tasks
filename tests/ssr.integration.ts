@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
+import { createTRPCClient, httpLink, TRPCClientError } from "@trpc/client";
 import { taskSchema } from "../src/lib/task-schema";
+import type { AppRouter } from "../src/server/tasks-router";
 
 let serverUrl = "http://127.0.0.1:3000";
 
@@ -25,6 +27,27 @@ async function loadMainContent() {
   assert.ok(content, "Expected the page content in the initial HTML.");
   return content[1];
 }
+
+it("creates tasks through the typed HTTP client and returns validation errors", async (context) => {
+  const client = createTRPCClient<AppRouter>({
+    links: [httpLink({ url: `${serverUrl}/api/trpc` })],
+  });
+  const title = `Client task ${randomUUID()}`;
+  const task = await client.tasks.create.mutate({ titulo: `  ${title}  ` });
+  context.after(async () => {
+    await client.tasks.delete.mutate({ id: task.id });
+  });
+
+  assert.equal(task.titulo, title);
+  taskSchema.parse(task);
+  assert.match(await loadMainContent(), new RegExp(`<h2[^>]*>${title}</h2>`));
+  await assert.rejects(client.tasks.create.mutate({ titulo: "   " }), (error: unknown) => {
+    assert.ok(error instanceof TRPCClientError);
+    assert.equal(error.message, "Enter a title.");
+    assert.equal(error.data.code, "BAD_REQUEST");
+    return true;
+  });
+});
 
 it("renders HTTP mutations in the initial page HTML", async (context) => {
   const title = `SSR task ${randomUUID()}`;
