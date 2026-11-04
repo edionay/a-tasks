@@ -4,30 +4,30 @@ export const LIMITE_TITULO = 120;
 export const LIMITE_DESCRICAO = 2_000;
 
 const titulo = z
-  .string({ error: "Informe um título." })
+  .string({ error: "Enter a title." })
   .trim()
-  .min(1, { error: "Informe um título." })
+  .min(1, { error: "Enter a title." })
   .max(LIMITE_TITULO, {
-    error: `O título deve ter no máximo ${LIMITE_TITULO} caracteres.`,
+    error: `Title must be at most ${LIMITE_TITULO} characters.`,
   });
 
 const descricao = z
-  .string({ error: "A descrição deve ser um texto." })
+  .string({ error: "Description must be text." })
   .max(LIMITE_DESCRICAO, {
-    error: `A descrição deve ter no máximo ${LIMITE_DESCRICAO} caracteres.`,
+    error: `Description must be at most ${LIMITE_DESCRICAO} characters.`,
   })
   .optional();
 
-const id = z.uuid({ error: "Informe um identificador de tarefa válido." });
+const id = z.uuid({ error: "Enter a valid task ID." });
 
 export const schemaCriacaoTarefa = z.strictObject(
   { titulo, descricao },
-  { error: "Dados da tarefa inválidos ou com campos não permitidos." },
+  { error: "Invalid task data or unexpected fields." },
 );
 
 export const schemaIdentificacaoTarefa = z.strictObject(
   { id },
-  { error: "Dados da tarefa inválidos ou com campos não permitidos." },
+  { error: "Invalid task data or unexpected fields." },
 );
 
 export const schemaAtualizacaoTarefa = schemaCriacaoTarefa.extend({ id });
@@ -35,7 +35,7 @@ export const schemaAtualizacaoTarefa = schemaCriacaoTarefa.extend({ id });
 export const schemaTarefa = schemaCriacaoTarefa.extend({
   id,
   dataCriacao: z.iso.datetime({
-    error: "Informe uma data de criação válida em UTC.",
+    error: "Enter a valid creation date in UTC.",
   }),
 });
 

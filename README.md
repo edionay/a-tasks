@@ -1,23 +1,22 @@
-# Tarefas
+# Tasks
 
-Aplicação de gerenciamento de tarefas com Next.js 15, React e TypeScript.
-A interface usa Tailwind CSS.
+Task manager built with Next.js 15, React, TypeScript and Tailwind CSS.
 
-## Requisitos
+## Requirements
 
-- Node.js 24.13.1, indicado no arquivo `.nvmrc`.
+- Node.js 24.13.1, as specified in `.nvmrc`.
 - npm 11.
 
-## Execução local
+## Local development
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Abra http://localhost:3000.
+Open http://localhost:3000.
 
-## Verificações
+## Checks
 
 ```sh
 npm test
@@ -26,85 +25,86 @@ npm run typecheck
 npm run build
 ```
 
-Para executar o build de produção:
+To run the production build:
 
 ```sh
 npm start
 ```
 
-## Testes
+## Tests
 
-`npm test` executa os testes com o runner nativo do Node.js e suporte a
-TypeScript pelo `tsx`. Arquivos de teste usam o sufixo `.test.ts` e ficam
-próximos do módulo testado em `src/`.
+`npm test` runs the native Node.js test runner with TypeScript support from
+`tsx`. Test files use the `.test.ts` suffix and sit next to their modules in `src/`.
 
-Os testes usam `node:test` e as assertions de `node:assert/strict`.
+Tests use `node:test` and assertions from `node:assert/strict`.
 
-## Contrato de tarefas
+## Task data
 
-O contrato e as regras de entrada ficam em `src/lib/tarefa-schema.ts`.
-Os tipos TypeScript são inferidos dos schemas Zod.
+Schemas and input rules live in `src/lib/tarefa-schema.ts`.
+TypeScript types are inferred from the Zod schemas.
 
-Uma tarefa contém `id` no formato UUID, `titulo`, `descricao` opcional e
-`dataCriacao` como timestamp ISO 8601 em UTC.
+Field names follow the challenge statement: `id`, `titulo`, optional `descricao`
+and `dataCriacao`. The ID is a UUID, and the creation date is an ISO 8601 timestamp
+in UTC. Domain identifiers and procedure names remain in Portuguese.
 
-O título recebe `trim` e deve ter de 1 a 120 caracteres após a normalização.
-A descrição aceita até 2.000 caracteres e preserva espaços e quebras de linha.
-A criação aceita apenas título e descrição. A atualização exige também o id
-da tarefa e não aceita uma nova data de criação. Campos adicionais são rejeitados.
+The title is trimmed and must contain 1 to 120 characters after trimming.
+The description accepts up to 2,000 characters and preserves whitespace and line
+breaks. Creation accepts only a title and description. The update schema also
+requires the task ID and rejects a replacement creation date. Extra fields are
+rejected.
 
-## API de tarefas
+## Task API
 
-A API usa tRPC no endpoint `/api/trpc`, com validação no servidor.
+The API uses tRPC at `/api/trpc` and validates input on the server.
 
-### Criar tarefa
+### Create a task
 
-A procedure `tarefas.criar` recebe `titulo` e `descricao` opcional e retorna a
-tarefa criada com `id` e `dataCriacao` gerados no servidor.
+`tarefas.criar` accepts `titulo` and an optional `descricao`. It returns the task
+with an ID and creation date assigned by the server.
 
 ```sh
 curl http://localhost:3000/api/trpc/tarefas.criar \
   -H 'Content-Type: application/json' \
-  --data '{"titulo":"Revisar documentação","descricao":"Conferir os comandos de execução."}'
+  --data '{"titulo":"Review documentation","descricao":"Check the run commands."}'
 ```
 
-A resposta contém a tarefa em `result.data`. Entradas inválidas retornam HTTP 400,
-código `BAD_REQUEST`, mensagem em português e erros associados aos campos em
-`error.data.errosCampos`. Erros internos retornam uma mensagem genérica, sem
-expor detalhes do servidor ou stack traces.
+The task is returned in `result.data`. Invalid input returns HTTP 400 with the
+`BAD_REQUEST` code, an English message and field errors in `error.data.errosCampos`.
+Internal errors return a generic message without server details or stack traces.
 
-### Listar tarefas
+### List tasks
 
-`tarefas.listar` retorna as tarefas mais recentes primeiro. Quando duas tarefas
-foram criadas no mesmo instante, o id define a ordem crescente.
+`tarefas.listar` returns the most recent tasks first. Tasks with the same creation
+date are sorted by ID in ascending order.
 
 ```sh
 curl http://localhost:3000/api/trpc/tarefas.listar
 ```
 
-A lista fica em `result.data`. Sem tarefas cadastradas, a resposta contém `[]`.
+The list is returned in `result.data`. An empty store returns `[]`.
 
-### Buscar tarefa por id
+### Find a task by ID
 
-`tarefas.buscarPorId` recebe o id e retorna a tarefa em `result.data`.
-Use o UUID retornado na criação:
+`tarefas.buscarPorId` accepts an ID and returns the task in `result.data`.
+Replace the sample UUID below with the ID returned when creating a task:
 
 ```sh
 curl --get http://localhost:3000/api/trpc/tarefas.buscarPorId \
   --data-urlencode 'input={"id":"550e8400-e29b-41d4-a716-446655440000"}'
 ```
 
-UUID inválido retorna HTTP 400 (`BAD_REQUEST`). UUID válido sem tarefa cadastrada
-retorna HTTP 404 (`NOT_FOUND`) com a mensagem “Tarefa não encontrada.”.
+An invalid UUID returns HTTP 400 (`BAD_REQUEST`). A valid UUID with no matching
+task returns HTTP 404 (`NOT_FOUND`) with the message "Task not found."
 
-### Armazenamento
+### Storage
 
-As tarefas ficam somente na memória do processo Node.js, sem banco, arquivos ou
-armazenamento no navegador. O estado começa vazio e é compartilhado por quem
-acessa a mesma instância. Reiniciar o processo apaga as tarefas; processos ou
-instâncias diferentes não compartilham os dados.
+Tasks exist only in the memory of the Node.js process. No database, files or
+browser storage are used. The store starts empty and is shared by everyone who
+accesses the same instance. Restarting the process clears the tasks. Separate
+processes or instances do not share data.
 
-## Dependências
+## Dependencies
 
-O `overrides` fixa PostCSS e minimatch em versões corrigidas. O parser e o plugin
-TypeScript do ESLint usam a mesma versão, compatível com ESLint 9.
+The `overrides` entries pin PostCSS and minimatch to patched versions.
+The TypeScript ESLint parser and plugin use the same version, compatible with
+ESLint 9.

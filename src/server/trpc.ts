@@ -19,9 +19,9 @@ const trpc = initTRPC.context<Contexto>().create({
     if (erroValidacao) {
       mensagem = erroValidacao.issues[0].message;
     } else if (error.code === "INTERNAL_SERVER_ERROR") {
-      mensagem = "Não foi possível processar a solicitação.";
+      mensagem = "Unable to process the request.";
     } else if (error.code === "BAD_REQUEST") {
-      mensagem = "Requisição inválida.";
+      mensagem = "Invalid request.";
     }
 
     return {
