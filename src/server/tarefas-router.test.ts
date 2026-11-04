@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { TRPCError } from "@trpc/server";
-import { schemaTarefa, type CriacaoTarefa } from "@/lib/tarefa-schema";
+import { schemaTarefa, type AtualizacaoTarefa, type CriacaoTarefa } from "@/lib/tarefa-schema";
 import { appRouter } from "./tarefas-router";
 import { criarArmazenamentoTarefas } from "./tarefas-store";
 
@@ -135,5 +135,107 @@ describe("task reads through the router", () => {
     consultada.titulo = "Changed lookup result";
 
     assert.equal(armazenamento.buscarPorId(criada.id)?.titulo, "Original title");
+  });
+});
+
+describe("task updates through the router", () => {
+  it("updates editable fields while preserving identity, creation date and list order", async (contexto) => {
+    contexto.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-04T21:00:00Z") });
+    const caller = criarCaller();
+    const original = await caller.tarefas.criar({
+      titulo: "Original title",
+      descricao: "Original description",
+    });
+    contexto.mock.timers.tick(1_000);
+    const outra = await caller.tarefas.criar({ titulo: "Another task" });
+    contexto.mock.timers.tick(1_000);
+
+    const atualizada = await caller.tarefas.atualizar({
+      id: original.id,
+      titulo: "  Updated title  ",
+      descricao: "Updated description",
+    });
+
+    assert.deepEqual(atualizada, {
+      ...original,
+      titulo: "Updated title",
+      descricao: "Updated description",
+    });
+    assert.deepEqual(await caller.tarefas.buscarPorId({ id: original.id }), atualizada);
+    assert.deepEqual(await caller.tarefas.listar(), [outra, atualizada]);
+  });
+
+  it("clears the previous description when it is omitted", async () => {
+    const caller = criarCaller();
+    const original = await caller.tarefas.criar({
+      titulo: "Original title",
+      descricao: "Original description",
+    });
+
+    const atualizada = await caller.tarefas.atualizar({
+      id: original.id,
+      titulo: "Updated title",
+    });
+    const consultada = await caller.tarefas.buscarPorId({ id: original.id });
+
+    assert.equal(atualizada.descricao, undefined);
+    assert.equal(consultada.descricao, undefined);
+  });
+
+  it("accepts an empty description", async () => {
+    const caller = criarCaller();
+    const original = await caller.tarefas.criar({ titulo: "Original title" });
+    const atualizada = await caller.tarefas.atualizar({
+      id: original.id,
+      titulo: "Updated title",
+      descricao: "",
+    });
+
+    assert.equal(atualizada.descricao, "");
+  });
+
+  it("leaves stored data unchanged when validation fails", async () => {
+    const caller = criarCaller();
+    const original = await caller.tarefas.criar({
+      titulo: "Original title",
+      descricao: "Original description",
+    });
+
+    for (const entrada of [
+      { id: original.id, titulo: "  " },
+      { id: original.id, titulo: "a".repeat(121) },
+      { id: original.id, titulo: "Updated title", descricao: "a".repeat(2_001) },
+      { id: original.id, titulo: "Updated title", dataCriacao: "2026-11-04T22:00:00Z" },
+    ]) {
+      await assert.rejects(
+        caller.tarefas.atualizar(entrada as AtualizacaoTarefa),
+        (erro) => erro instanceof TRPCError && erro.code === "BAD_REQUEST",
+      );
+    }
+
+    assert.deepEqual(await caller.tarefas.buscarPorId({ id: original.id }), original);
+  });
+
+  it("returns NOT_FOUND without inserting a task when it does not exist", async () => {
+    const caller = criarCaller();
+
+    await assert.rejects(
+      caller.tarefas.atualizar({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        titulo: "Updated title",
+      }),
+      (erro) => erro instanceof TRPCError && erro.code === "NOT_FOUND",
+    );
+    assert.deepEqual(await caller.tarefas.listar(), []);
+  });
+
+  it("returns a copy of the updated task", () => {
+    const armazenamento = criarArmazenamentoTarefas();
+    const original = armazenamento.criar({ titulo: "Original title" });
+    const atualizada = armazenamento.atualizar({ id: original.id, titulo: "Updated title" });
+    assert.ok(atualizada);
+    atualizada.titulo = "Changed return value";
+
+    assert.equal(armazenamento.buscarPorId(original.id)?.titulo, "Updated title");
   });
 });

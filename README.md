@@ -49,8 +49,8 @@ in UTC. Domain identifiers and procedure names remain in Portuguese.
 
 The title is trimmed and must contain 1 to 120 characters after trimming.
 The description accepts up to 2,000 characters and preserves whitespace and line
-breaks. Creation accepts only a title and description. The update schema also
-requires the task ID and rejects a replacement creation date. Extra fields are
+breaks. Creation accepts only a title and description. Updates also
+require the task ID and reject a replacement creation date. Extra fields are
 rejected.
 
 ## Task API
@@ -95,6 +95,22 @@ curl --get http://localhost:3000/api/trpc/tarefas.buscarPorId \
 
 An invalid UUID returns HTTP 400 (`BAD_REQUEST`). A valid UUID with no matching
 task returns HTTP 404 (`NOT_FOUND`) with the message "Task not found."
+
+### Update a task
+
+`tarefas.atualizar` accepts `id`, `titulo` and an optional `descricao`.
+It replaces the title and description while keeping the ID and creation date.
+Omitting `descricao` clears the previous description; an empty string is also accepted.
+
+```sh
+curl http://localhost:3000/api/trpc/tarefas.atualizar \
+  -H 'Content-Type: application/json' \
+  --data '{"id":"550e8400-e29b-41d4-a716-446655440000","titulo":"Updated title","descricao":"Updated description"}'
+```
+
+Use the ID of an existing task. The response contains the updated task in
+`result.data`. A missing task returns HTTP 404 (`NOT_FOUND`). Invalid input
+returns HTTP 400 (`BAD_REQUEST`) and leaves the stored task unchanged.
 
 ### Storage
 

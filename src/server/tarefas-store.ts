@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CriacaoTarefa, Tarefa } from "@/lib/tarefa-schema";
+import type { AtualizacaoTarefa, CriacaoTarefa, Tarefa } from "@/lib/tarefa-schema";
 
 export function criarArmazenamentoTarefas() {
   const tarefas = new Map<string, Tarefa>();
@@ -29,6 +29,24 @@ export function criarArmazenamentoTarefas() {
           return primeira.id.localeCompare(segunda.id);
         })
         .map((tarefa) => ({ ...tarefa }));
+    },
+
+    atualizar(entrada: AtualizacaoTarefa): Tarefa | undefined {
+      const tarefa = tarefas.get(entrada.id);
+
+      if (tarefa === undefined) {
+        return undefined;
+      }
+
+      const atualizada: Tarefa = {
+        id: tarefa.id,
+        titulo: entrada.titulo,
+        descricao: entrada.descricao,
+        dataCriacao: tarefa.dataCriacao,
+      };
+
+      tarefas.set(tarefa.id, atualizada);
+      return { ...atualizada };
     },
 
     buscarPorId(id: string): Tarefa | undefined {
