@@ -34,9 +34,3 @@ Para executar o build de produção:
 ```sh
 npm start
 ```
-
-## Estado atual
-
-Esta primeira etapa configura a aplicação, os estilos e as verificações.
-A página inicial contém o estado vazio da lista. O CRUD e a integração tRPC
-serão implementados nas próximas etapas.
