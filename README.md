@@ -55,7 +55,7 @@ npm run test:integration
 
 The test creates a temporary task through HTTP, checks its title, description
 and date in the initial page HTML, then updates and deletes it. It removes the
-task after the test. To use another server address, set `TAREFAS_TEST_URL`.
+task after the test. To use another server address, set `TASKS_TEST_URL`.
 
 ## Task list
 
@@ -65,12 +65,13 @@ and creation dates are included in the initial HTML. Dates are displayed in UTC.
 
 ## Task data
 
-Schemas and input rules live in `src/lib/tarefa-schema.ts`.
+Schemas and input rules live in `src/lib/task-schema.ts`.
 TypeScript types are inferred from the Zod schemas.
 
 Field names follow the challenge statement: `id`, `titulo`, optional `descricao`
 and `dataCriacao`. The ID is a UUID, and the creation date is an ISO 8601 timestamp
-in UTC. Domain identifiers and procedure names remain in Portuguese.
+in UTC. Code identifiers, routes and procedure names use English. Only the data fields
+`titulo`, `descricao` and `dataCriacao` retain the names from the challenge statement.
 
 The title is trimmed and must contain 1 to 120 characters after trimming.
 The description accepts up to 2,000 characters and preserves whitespace and line
@@ -84,37 +85,37 @@ The API uses tRPC at `/api/trpc` and validates input on the server.
 
 ### Create a task
 
-`tarefas.criar` accepts `titulo` and an optional `descricao`. It returns the task
+`tasks.create` accepts `titulo` and an optional `descricao`. It returns the task
 with an ID and creation date assigned by the server.
 
 ```sh
-curl http://localhost:3000/api/trpc/tarefas.criar \
+curl http://localhost:3000/api/trpc/tasks.create \
   -H 'Content-Type: application/json' \
   --data '{"titulo":"Review documentation","descricao":"Check the run commands."}'
 ```
 
 The task is returned in `result.data`. Invalid input returns HTTP 400 with the
-`BAD_REQUEST` code, an English message and field errors in `error.data.errosCampos`.
+`BAD_REQUEST` code, an English message and field errors in `error.data.fieldErrors`.
 Internal errors return a generic message without server details or stack traces.
 
 ### List tasks
 
-`tarefas.listar` returns the most recent tasks first. Tasks with the same creation
+`tasks.list` returns the most recent tasks first. Tasks with the same creation
 date are sorted by ID in ascending order.
 
 ```sh
-curl http://localhost:3000/api/trpc/tarefas.listar
+curl http://localhost:3000/api/trpc/tasks.list
 ```
 
 The list is returned in `result.data`. An empty store returns `[]`.
 
 ### Find a task by ID
 
-`tarefas.buscarPorId` accepts an ID and returns the task in `result.data`.
+`tasks.findById` accepts an ID and returns the task in `result.data`.
 Replace the sample UUID below with the ID returned when creating a task:
 
 ```sh
-curl --get http://localhost:3000/api/trpc/tarefas.buscarPorId \
+curl --get http://localhost:3000/api/trpc/tasks.findById \
   --data-urlencode 'input={"id":"550e8400-e29b-41d4-a716-446655440000"}'
 ```
 
@@ -123,12 +124,12 @@ task returns HTTP 404 (`NOT_FOUND`) with the message "Task not found."
 
 ### Update a task
 
-`tarefas.atualizar` accepts `id`, `titulo` and an optional `descricao`.
+`tasks.update` accepts `id`, `titulo` and an optional `descricao`.
 It replaces the title and description while keeping the ID and creation date.
 Omitting `descricao` clears the previous description; an empty string is also accepted.
 
 ```sh
-curl http://localhost:3000/api/trpc/tarefas.atualizar \
+curl http://localhost:3000/api/trpc/tasks.update \
   -H 'Content-Type: application/json' \
   --data '{"id":"550e8400-e29b-41d4-a716-446655440000","titulo":"Updated title","descricao":"Updated description"}'
 ```
@@ -139,11 +140,11 @@ returns HTTP 400 (`BAD_REQUEST`) and leaves the stored task unchanged.
 
 ### Delete a task
 
-`tarefas.excluir` accepts an `id` and returns `{ id }` after removing the task.
+`tasks.delete` accepts an `id` and returns `{ id }` after removing the task.
 Use the ID of an existing task:
 
 ```sh
-curl http://localhost:3000/api/trpc/tarefas.excluir \
+curl http://localhost:3000/api/trpc/tasks.delete \
   -H 'Content-Type: application/json' \
   --data '{"id":"550e8400-e29b-41d4-a716-446655440000"}'
 ```

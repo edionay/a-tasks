@@ -1,63 +1,63 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
-import { schemaTarefa } from "../src/lib/tarefa-schema";
+import { taskSchema } from "../src/lib/task-schema";
 
-let enderecoServidor = "http://127.0.0.1:3000";
+let serverUrl = "http://127.0.0.1:3000";
 
-if (process.env.TAREFAS_TEST_URL) {
-  enderecoServidor = process.env.TAREFAS_TEST_URL;
+if (process.env.TASKS_TEST_URL) {
+  serverUrl = process.env.TASKS_TEST_URL;
 }
 
-async function enviarMutacao(operacao: string, entrada: unknown) {
-  return fetch(`${enderecoServidor}/api/trpc/${operacao}`, {
+async function sendMutation(operation: string, input: unknown) {
+  return fetch(`${serverUrl}/api/trpc/${operation}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(entrada),
+    body: JSON.stringify(input),
   });
 }
 
-async function carregarConteudoPrincipal() {
-  const resposta = await fetch(enderecoServidor);
-  assert.equal(resposta.status, 200);
-  const html = await resposta.text();
-  const conteudo = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/);
-  assert.ok(conteudo, "Expected the page content in the initial HTML.");
-  return conteudo[1];
+async function loadMainContent() {
+  const response = await fetch(serverUrl);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  const content = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/);
+  assert.ok(content, "Expected the page content in the initial HTML.");
+  return content[1];
 }
 
-it("renders HTTP mutations in the initial page HTML", async (contexto) => {
-  const titulo = `SSR task ${randomUUID()}`;
-  const descricao = "Visible before browser scripts run.";
-  const criacao = await enviarMutacao("tarefas.criar", { titulo, descricao });
-  assert.equal(criacao.status, 200);
-  const corpoCriacao = await criacao.json();
-  const tarefa = schemaTarefa.parse(corpoCriacao.result.data);
+it("renders HTTP mutations in the initial page HTML", async (context) => {
+  const title = `SSR task ${randomUUID()}`;
+  const description = "Visible before browser scripts run.";
+  const creation = await sendMutation("tasks.create", { titulo: title, descricao: description });
+  assert.equal(creation.status, 200);
+  const creationBody = await creation.json();
+  const task = taskSchema.parse(creationBody.result.data);
 
-  contexto.after(async () => {
-    const resposta = await enviarMutacao("tarefas.excluir", { id: tarefa.id });
-    assert.ok(resposta.status === 200 || resposta.status === 404);
+  context.after(async () => {
+    const response = await sendMutation("tasks.delete", { id: task.id });
+    assert.ok(response.status === 200 || response.status === 404);
   });
 
-  const inicial = await carregarConteudoPrincipal();
-  assert.match(inicial, new RegExp(`<h2[^>]*>${titulo}</h2>`));
-  assert.ok(inicial.includes(descricao));
-  assert.ok(inicial.includes(tarefa.dataCriacao));
-  assert.ok(inicial.includes("UTC"));
+  const initial = await loadMainContent();
+  assert.match(initial, new RegExp(`<h2[^>]*>${title}</h2>`));
+  assert.ok(initial.includes(description));
+  assert.ok(initial.includes(task.dataCriacao));
+  assert.ok(initial.includes("UTC"));
 
-  const novoTitulo = `Updated ${titulo}`;
-  const atualizacao = await enviarMutacao("tarefas.atualizar", {
-    id: tarefa.id,
-    titulo: novoTitulo,
-    descricao,
+  const newTitle = `Updated ${title}`;
+  const updateResult = await sendMutation("tasks.update", {
+    id: task.id,
+    titulo: newTitle,
+    descricao: description,
   });
-  assert.equal(atualizacao.status, 200);
-  const atualizada = await carregarConteudoPrincipal();
-  assert.match(atualizada, new RegExp(`<h2[^>]*>${novoTitulo}</h2>`));
-  assert.doesNotMatch(atualizada, new RegExp(`<h2[^>]*>${titulo}</h2>`));
+  assert.equal(updateResult.status, 200);
+  const updated = await loadMainContent();
+  assert.match(updated, new RegExp(`<h2[^>]*>${newTitle}</h2>`));
+  assert.doesNotMatch(updated, new RegExp(`<h2[^>]*>${title}</h2>`));
 
-  const exclusao = await enviarMutacao("tarefas.excluir", { id: tarefa.id });
-  assert.equal(exclusao.status, 200);
-  const final = await carregarConteudoPrincipal();
-  assert.ok(!final.includes(tarefa.id));
+  const deletion = await sendMutation("tasks.delete", { id: task.id });
+  assert.equal(deletion.status, 200);
+  const final = await loadMainContent();
+  assert.ok(!final.includes(task.id));
 });

@@ -1,40 +1,40 @@
 import { initTRPC } from "@trpc/server";
 import { flattenError, ZodError } from "zod";
-import { armazenamentoTarefas } from "./tarefas-store";
+import { taskStore } from "./tasks-store";
 
-export function criarContexto() {
-  return { tarefas: armazenamentoTarefas };
+export function createContext() {
+  return { tasks: taskStore };
 }
 
-type Contexto = ReturnType<typeof criarContexto>;
+type Context = ReturnType<typeof createContext>;
 
-const trpc = initTRPC.context<Contexto>().create({
+const trpc = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
-    const erroValidacao =
+    const validationError =
       error.code === "BAD_REQUEST" && error.cause instanceof ZodError
         ? error.cause
         : null;
-    let mensagem = shape.message;
+    let message = shape.message;
 
-    if (erroValidacao) {
-      mensagem = erroValidacao.issues[0].message;
+    if (validationError) {
+      message = validationError.issues[0].message;
     } else if (error.code === "INTERNAL_SERVER_ERROR") {
-      mensagem = "Unable to process the request.";
+      message = "Unable to process the request.";
     } else if (error.code === "BAD_REQUEST") {
-      mensagem = "Invalid request.";
+      message = "Invalid request.";
     }
 
     return {
       ...shape,
-      message: mensagem,
+      message,
       data: {
         ...shape.data,
         stack: undefined,
-        errosCampos: erroValidacao ? flattenError(erroValidacao).fieldErrors : null,
+        fieldErrors: validationError ? flattenError(validationError).fieldErrors : null,
       },
     };
   },
 });
 
-export const criarRouter = trpc.router;
-export const procedimento = trpc.procedure;
+export const createRouter = trpc.router;
+export const procedure = trpc.procedure;
