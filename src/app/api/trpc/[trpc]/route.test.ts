@@ -6,8 +6,8 @@ import { appRouter } from "@/server/tarefas-router";
 import { criarArmazenamentoTarefas } from "@/server/tarefas-store";
 import { GET, POST } from "./route";
 
-function criarRequisicao(entrada: unknown) {
-  return new Request("http://localhost/api/trpc/tarefas.criar", {
+function criarRequisicao(entrada: unknown, operacao = "tarefas.criar") {
+  return new Request(`http://localhost/api/trpc/${operacao}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(entrada),
@@ -131,5 +131,67 @@ describe("task reads over HTTP", () => {
     assert.equal(corpo.error.data.code, "BAD_REQUEST");
     assert.equal(corpo.error.message, "Enter a valid task ID.");
     assert.equal("stack" in corpo.error.data, false);
+  });
+});
+
+describe("task updates over HTTP", () => {
+  it("updates an existing task and persists the result across requests", async () => {
+    const criacao = await POST(criarRequisicao({ titulo: "Original title" }));
+    const corpoCriacao = await criacao.json();
+    const original = schemaTarefa.parse(corpoCriacao.result.data);
+
+    const resposta = await POST(criarRequisicao({
+      id: original.id,
+      titulo: "  Updated title  ",
+      descricao: "Updated description",
+    }, "tarefas.atualizar"));
+    const corpo = await resposta.json();
+    const atualizada = schemaTarefa.parse(corpo.result.data);
+
+    assert.equal(resposta.status, 200);
+    assert.deepEqual(atualizada, {
+      ...original,
+      titulo: "Updated title",
+      descricao: "Updated description",
+    });
+
+    const parametros = new URLSearchParams({ input: JSON.stringify({ id: original.id }) });
+    const consulta = await GET(
+      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    );
+    const corpoConsulta = await consulta.json();
+    assert.deepEqual(corpoConsulta.result.data, atualizada);
+  });
+
+  it("returns HTTP 404 when updating a missing task", async () => {
+    const resposta = await POST(criarRequisicao({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      titulo: "Updated title",
+    }, "tarefas.atualizar"));
+    const corpo = await resposta.json();
+
+    assert.equal(resposta.status, 404);
+    assert.equal(corpo.error.message, "Task not found.");
+    assert.equal(corpo.error.data.code, "NOT_FOUND");
+    assert.equal("stack" in corpo.error.data, false);
+  });
+
+  it("returns HTTP 400 with a field error for invalid update input", async () => {
+    const resposta = await POST(criarRequisicao({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      titulo: "  ",
+    }, "tarefas.atualizar"));
+    const corpo = await resposta.json();
+
+    assert.equal(resposta.status, 400);
+    assert.equal(corpo.error.data.code, "BAD_REQUEST");
+    assert.deepEqual(corpo.error.data.errosCampos.titulo, ["Enter a title."]);
+    assert.equal("stack" in corpo.error.data, false);
+  });
+
+  it("does not allow task updates through GET", async () => {
+    const resposta = await GET(new Request("http://localhost/api/trpc/tarefas.atualizar"));
+
+    assert.equal(resposta.status, 405);
   });
 });

@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import {
+  schemaAtualizacaoTarefa,
   schemaCriacaoTarefa,
   schemaIdentificacaoTarefa,
   schemaTarefa,
@@ -11,6 +12,19 @@ const routerTarefas = criarRouter({
     .input(schemaCriacaoTarefa)
     .output(schemaTarefa)
     .mutation(({ ctx: contexto, input: entrada }) => contexto.tarefas.criar(entrada)),
+
+  atualizar: procedimento
+    .input(schemaAtualizacaoTarefa)
+    .output(schemaTarefa)
+    .mutation(({ ctx: contexto, input: entrada }) => {
+      const tarefa = contexto.tarefas.atualizar(entrada);
+
+      if (tarefa === undefined) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+      }
+
+      return tarefa;
+    }),
 
   listar: procedimento
     .output(schemaTarefa.array())
