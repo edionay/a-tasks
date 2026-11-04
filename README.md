@@ -3,10 +3,6 @@
 Aplicação de gerenciamento de tarefas com Next.js 15, React e TypeScript.
 A interface usa Tailwind CSS.
 
-As dependências PostCSS, usada pelo Next.js, e minimatch, usada pelo parser
-TypeScript, estão fixadas em `overrides` para incluir correções de segurança.
-O parser e o plugin TypeScript do ESLint usam a mesma versão, compatível com ESLint 9.
-
 ## Requisitos
 
 - Node.js 24.13.1, indicado no arquivo `.nvmrc`.
@@ -77,9 +73,38 @@ código `BAD_REQUEST`, mensagem em português e erros associados aos campos em
 `error.data.errosCampos`. Erros internos retornam uma mensagem genérica, sem
 expor detalhes do servidor ou stack traces.
 
+### Listar tarefas
+
+`tarefas.listar` retorna as tarefas mais recentes primeiro. Quando duas tarefas
+foram criadas no mesmo instante, o id define a ordem crescente.
+
+```sh
+curl http://localhost:3000/api/trpc/tarefas.listar
+```
+
+A lista fica em `result.data`. Sem tarefas cadastradas, a resposta contém `[]`.
+
+### Buscar tarefa por id
+
+`tarefas.buscarPorId` recebe o id e retorna a tarefa em `result.data`.
+Use o UUID retornado na criação:
+
+```sh
+curl --get http://localhost:3000/api/trpc/tarefas.buscarPorId \
+  --data-urlencode 'input={"id":"550e8400-e29b-41d4-a716-446655440000"}'
+```
+
+UUID inválido retorna HTTP 400 (`BAD_REQUEST`). UUID válido sem tarefa cadastrada
+retorna HTTP 404 (`NOT_FOUND`) com a mensagem “Tarefa não encontrada.”.
+
 ### Armazenamento
 
 As tarefas ficam somente na memória do processo Node.js, sem banco, arquivos ou
 armazenamento no navegador. O estado começa vazio e é compartilhado por quem
 acessa a mesma instância. Reiniciar o processo apaga as tarefas; processos ou
 instâncias diferentes não compartilham os dados.
+
+## Dependências
+
+O `overrides` fixa PostCSS e minimatch em versões corrigidas. O parser e o plugin
+TypeScript do ESLint usam a mesma versão, compatível com ESLint 9.
