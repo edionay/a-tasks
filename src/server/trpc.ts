@@ -8,7 +8,7 @@ export function criarContexto() {
 
 type Contexto = ReturnType<typeof criarContexto>;
 
-const t = initTRPC.context<Contexto>().create({
+const trpc = initTRPC.context<Contexto>().create({
   errorFormatter({ shape, error }) {
     const erroValidacao =
       error.code === "BAD_REQUEST" && error.cause instanceof ZodError
@@ -36,5 +36,5 @@ const t = initTRPC.context<Contexto>().create({
   },
 });
 
-export const criarRouter = t.router;
-export const procedimento = t.procedure;
+export const criarRouter = trpc.router;
+export const procedimento = trpc.procedure;
