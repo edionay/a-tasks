@@ -24,6 +24,7 @@ Abra http://localhost:3000.
 ## Verificações
 
 ```sh
+npm test
 npm run lint
 npm run typecheck
 npm run build
@@ -34,3 +35,11 @@ Para executar o build de produção:
 ```sh
 npm start
 ```
+
+## Testes
+
+`npm test` executa os testes com o runner nativo do Node.js e suporte a
+TypeScript pelo `tsx`. Arquivos de teste usam o sufixo `.test.ts` e ficam
+próximos do módulo testado em `src/`.
+
+Os testes usam `node:test` e as assertions de `node:assert/strict`.
