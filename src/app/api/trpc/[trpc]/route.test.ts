@@ -195,3 +195,56 @@ describe("task updates over HTTP", () => {
     assert.equal(resposta.status, 405);
   });
 });
+
+describe("task deletion over HTTP", () => {
+  it("deletes a task through POST and removes it from subsequent reads", async () => {
+    const criacao = await POST(criarRequisicao({ titulo: "Task to delete" }));
+    const corpoCriacao = await criacao.json();
+    const tarefa = schemaTarefa.parse(corpoCriacao.result.data);
+
+    const resposta = await POST(criarRequisicao({ id: tarefa.id }, "tarefas.excluir"));
+    const corpo = await resposta.json();
+
+    assert.equal(resposta.status, 200);
+    assert.deepEqual(corpo.result.data, { id: tarefa.id });
+
+    const listagem = await GET(new Request("http://localhost/api/trpc/tarefas.listar"));
+    const corpoListagem = await listagem.json();
+    const tarefas = schemaTarefa.array().parse(corpoListagem.result.data);
+    assert.equal(tarefas.some((item) => item.id === tarefa.id), false);
+
+    const parametros = new URLSearchParams({ input: JSON.stringify({ id: tarefa.id }) });
+    const consulta = await GET(
+      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    );
+    assert.equal(consulta.status, 404);
+  });
+
+  it("returns HTTP 404 when deleting a missing task", async () => {
+    const resposta = await POST(criarRequisicao({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+    }, "tarefas.excluir"));
+    const corpo = await resposta.json();
+
+    assert.equal(resposta.status, 404);
+    assert.equal(corpo.error.data.code, "NOT_FOUND");
+    assert.equal(corpo.error.message, "Task not found.");
+    assert.equal("stack" in corpo.error.data, false);
+  });
+
+  it("returns HTTP 400 for an invalid deletion ID", async () => {
+    const resposta = await POST(criarRequisicao({ id: "invalid" }, "tarefas.excluir"));
+    const corpo = await resposta.json();
+
+    assert.equal(resposta.status, 400);
+    assert.equal(corpo.error.data.code, "BAD_REQUEST");
+    assert.deepEqual(corpo.error.data.errosCampos.id, ["Enter a valid task ID."]);
+    assert.equal("stack" in corpo.error.data, false);
+  });
+
+  it("does not allow task deletion through GET", async () => {
+    const resposta = await GET(new Request("http://localhost/api/trpc/tarefas.excluir"));
+
+    assert.equal(resposta.status, 405);
+  });
+});

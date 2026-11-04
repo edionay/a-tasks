@@ -26,6 +26,19 @@ const routerTarefas = criarRouter({
       return tarefa;
     }),
 
+  excluir: procedimento
+    .input(schemaIdentificacaoTarefa)
+    .output(schemaIdentificacaoTarefa)
+    .mutation(({ ctx: contexto, input: entrada }) => {
+      const excluida = contexto.tarefas.excluir(entrada.id);
+
+      if (!excluida) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+      }
+
+      return { id: entrada.id };
+    }),
+
   listar: procedimento
     .output(schemaTarefa.array())
     .query(({ ctx: contexto }) => contexto.tarefas.listar()),

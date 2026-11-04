@@ -239,3 +239,54 @@ describe("task updates through the router", () => {
     assert.equal(armazenamento.buscarPorId(original.id)?.titulo, "Updated title");
   });
 });
+
+describe("task deletion through the router", () => {
+  it("deletes only the selected task and returns its ID", async () => {
+    const caller = criarCaller();
+    const selecionada = await caller.tarefas.criar({ titulo: "Task to delete" });
+    const outra = await caller.tarefas.criar({ titulo: "Task to keep" });
+
+    assert.deepEqual(await caller.tarefas.excluir({ id: selecionada.id }), {
+      id: selecionada.id,
+    });
+    assert.deepEqual(await caller.tarefas.listar(), [outra]);
+    await assert.rejects(
+      caller.tarefas.buscarPorId({ id: selecionada.id }),
+      (erro) => erro instanceof TRPCError && erro.code === "NOT_FOUND",
+    );
+  });
+
+  it("returns NOT_FOUND without changing other tasks when the task does not exist", async () => {
+    const caller = criarCaller();
+    const existente = await caller.tarefas.criar({ titulo: "Existing task" });
+
+    await assert.rejects(
+      caller.tarefas.excluir({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+      (erro) => erro instanceof TRPCError && erro.code === "NOT_FOUND",
+    );
+    assert.deepEqual(await caller.tarefas.listar(), [existente]);
+  });
+
+  it("rejects an invalid ID without changing stored tasks", async () => {
+    const caller = criarCaller();
+    const existente = await caller.tarefas.criar({ titulo: "Existing task" });
+
+    await assert.rejects(
+      caller.tarefas.excluir({ id: "invalid" }),
+      (erro) => erro instanceof TRPCError && erro.code === "BAD_REQUEST",
+    );
+    assert.deepEqual(await caller.tarefas.listar(), [existente]);
+  });
+
+  it("returns NOT_FOUND when the same task is deleted twice", async () => {
+    const caller = criarCaller();
+    const tarefa = await caller.tarefas.criar({ titulo: "Task to delete" });
+    await caller.tarefas.excluir({ id: tarefa.id });
+
+    await assert.rejects(
+      caller.tarefas.excluir({ id: tarefa.id }),
+      (erro) => erro instanceof TRPCError && erro.code === "NOT_FOUND",
+    );
+    assert.deepEqual(await caller.tarefas.listar(), []);
+  });
+});
