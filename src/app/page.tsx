@@ -11,7 +11,7 @@ type Props = { searchParams: Promise<{ notice?: string | string[] }> };
 export default async function Home({ searchParams }: Props) {
   const parameters = await searchParams;
   const serverApi = appRouter.createCaller(createContext());
-  const tasks = await serverApi.tasks.list();
+  const initialPage = await serverApi.tasks.listPage({});
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -30,7 +30,7 @@ export default async function Home({ searchParams }: Props) {
           Task deleted.
         </p>
       )}
-      <TaskList tasks={tasks} />
+      <TaskList initialPage={initialPage} />
     </main>
   );
 }
