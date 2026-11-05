@@ -290,3 +290,84 @@ describe("task deletion through the router", () => {
     assert.deepEqual(await caller.tasks.list(), []);
   });
 });
+
+describe("task pagination", () => {
+  it("returns an empty page without a continuation cursor", async () => {
+    assert.deepEqual(await createCaller().tasks.listPage({}), { items: [] });
+  });
+
+  it("returns ten tasks per page without gaps or duplicates when dates match", async (context) => {
+    context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-04T21:00:00Z") });
+    const caller = createCaller();
+    const created = [];
+    for (let index = 0; index < 25; index += 1) {
+      created.push(await caller.tasks.create({ titulo: `Task ${index}` }));
+    }
+
+    const first = await caller.tasks.listPage({});
+    assert.equal(first.items.length, 10);
+    assert.ok(first.nextCursor);
+    const second = await caller.tasks.listPage({ cursor: first.nextCursor });
+    assert.equal(second.items.length, 10);
+    assert.ok(second.nextCursor);
+    const third = await caller.tasks.listPage({ cursor: second.nextCursor });
+    assert.equal(third.items.length, 5);
+    assert.equal(third.nextCursor, undefined);
+
+    const actualIds = [...first.items, ...second.items, ...third.items].map((task) => task.id);
+    assert.deepEqual(actualIds, created.map((task) => task.id).sort());
+    assert.equal(new Set(actualIds).size, 25);
+  });
+
+  it("does not offer another page when exactly ten tasks remain", async () => {
+    const caller = createCaller();
+    for (let index = 0; index < 10; index += 1) {
+      await caller.tasks.create({ titulo: `Task ${index}` });
+    }
+    const page = await caller.tasks.listPage({});
+    assert.equal(page.items.length, 10);
+    assert.equal(page.nextCursor, undefined);
+  });
+
+  it("continues after a deleted cursor without repeating newly inserted tasks", async (context) => {
+    context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-04T21:00:00Z") });
+    const caller = createCaller();
+    const created = [];
+    for (let index = 0; index < 12; index += 1) {
+      created.push(await caller.tasks.create({ titulo: `Task ${index}` }));
+      context.mock.timers.tick(1_000);
+    }
+    const first = await caller.tasks.listPage({});
+    assert.ok(first.nextCursor);
+    assert.deepEqual(first.items.map((task) => task.id), created.slice(2).reverse().map((task) => task.id));
+    await caller.tasks.delete({ id: first.nextCursor.id });
+    await caller.tasks.create({ titulo: "New task after the first page" });
+    await caller.tasks.update({ id: created[0].id, titulo: "Updated older task" });
+
+    const second = await caller.tasks.listPage({ cursor: first.nextCursor });
+    assert.deepEqual(second.items.map((task) => task.id), [created[1].id, created[0].id]);
+    assert.equal(second.items[1].titulo, "Updated older task");
+    assert.equal(second.nextCursor, undefined);
+  });
+
+  it("returns page items independently of the stored objects", () => {
+    const store = createTaskStore();
+    const original = store.create({ titulo: "Original title" });
+    store.listPage().items[0].titulo = "Changed page result";
+    assert.equal(store.findById(original.id)?.titulo, "Original title");
+  });
+
+  it("rejects malformed cursors and client-selected page sizes", async () => {
+    const caller = createCaller();
+    for (const input of [
+      { cursor: { id: "invalid", dataCriacao: "2026-11-04T21:00:00Z" } },
+      { cursor: { id: "550e8400-e29b-41d4-a716-446655440000", dataCriacao: "invalid" } },
+      { limit: 100 },
+    ]) {
+      await assert.rejects(
+        caller.tasks.listPage(input as Parameters<typeof caller.tasks.listPage>[0]),
+        (error) => error instanceof TRPCError && error.code === "BAD_REQUEST",
+      );
+    }
+  });
+});

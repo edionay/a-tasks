@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const TITLE_LIMIT = 120;
 export const DESCRIPTION_LIMIT = 2_000;
+export const TASK_PAGE_SIZE = 10;
 
 const title = z
   .string({ error: "Enter a title." })
@@ -42,3 +43,15 @@ export const taskSchema = taskCreationSchema.extend({
 export type Task = z.infer<typeof taskSchema>;
 export type TaskCreation = z.infer<typeof taskCreationSchema>;
 export type TaskUpdate = z.infer<typeof taskUpdateSchema>;
+
+export const taskCursorSchema = taskSchema.pick({ id: true, dataCriacao: true });
+export const taskPageInputSchema = z.strictObject({
+  cursor: taskCursorSchema.optional(),
+});
+export const taskPageSchema = z.strictObject({
+  items: taskSchema.array().max(TASK_PAGE_SIZE),
+  nextCursor: taskCursorSchema.optional(),
+});
+
+export type TaskCursor = z.infer<typeof taskCursorSchema>;
+export type TaskPage = z.infer<typeof taskPageSchema>;

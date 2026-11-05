@@ -1,5 +1,18 @@
 import { randomUUID } from "node:crypto";
-import type { TaskUpdate, TaskCreation, Task } from "@/lib/task-schema";
+import {
+  TASK_PAGE_SIZE,
+  type TaskUpdate,
+  type TaskCreation,
+  type Task,
+  type TaskCursor,
+  type TaskPage,
+} from "@/lib/task-schema";
+
+function compareTaskOrder(first: TaskCursor, second: TaskCursor) {
+  const dateDifference = Date.parse(second.dataCriacao) - Date.parse(first.dataCriacao);
+  if (dateDifference !== 0) return dateDifference;
+  return first.id.localeCompare(second.id);
+}
 
 export function createTaskStore() {
   const tasks = new Map<string, Task>();
@@ -18,17 +31,25 @@ export function createTaskStore() {
 
     list(): Task[] {
       return Array.from(tasks.values())
-        .sort((first, second) => {
-          const dateDifference =
-            Date.parse(second.dataCriacao) - Date.parse(first.dataCriacao);
-
-          if (dateDifference !== 0) {
-            return dateDifference;
-          }
-
-          return first.id.localeCompare(second.id);
-        })
+        .sort(compareTaskOrder)
         .map((task) => ({ ...task }));
+    },
+
+    listPage(cursor?: TaskCursor): TaskPage {
+      const remaining = Array.from(tasks.values())
+        .filter((task) => !cursor || compareTaskOrder(task, cursor) > 0)
+        .sort(compareTaskOrder);
+      const items = remaining.slice(0, TASK_PAGE_SIZE).map((task) => ({ ...task }));
+      const lastItem = items.at(-1);
+
+      if (remaining.length > TASK_PAGE_SIZE && lastItem) {
+        return {
+          items,
+          nextCursor: { id: lastItem.id, dataCriacao: lastItem.dataCriacao },
+        };
+      }
+
+      return { items };
     },
 
     update(input: TaskUpdate): Task | undefined {
