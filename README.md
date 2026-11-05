@@ -16,6 +16,25 @@ npm run dev
 
 Open http://localhost:3000.
 
+No environment variables or external services are required.
+
+## Architecture
+
+Frontend and backend run in one Next.js application on Node.js. Next.js serves
+the pages and the tRPC HTTP endpoint, so no separate backend process is needed.
+
+- `src/app/`: routes, server-rendered pages and the HTTP handler at `/api/trpc`.
+- `src/components/`: task list, shared creation/edit form and delete button.
+- `src/lib/task-schema.ts`: Zod schemas and inferred types shared by client and server.
+- `src/lib/trpc-client.ts`: typed HTTP client for browser mutations.
+- `src/server/tasks-router.ts`: tRPC procedures and expected API errors.
+- `src/server/tasks-store.ts`: task operations and the shared in-memory store.
+- `src/server/trpc.ts`: server context and error formatting.
+
+Page requests load tasks through a server-side tRPC caller. Browser mutations
+use the HTTP endpoint and then refresh the server-rendered list. Both paths use
+the same store in the Node.js process. Task data is not cached in browser storage.
+
 ## Checks
 
 ```sh
@@ -59,6 +78,22 @@ task after the test. To use another server address, set `TASKS_TEST_URL`.
 It also checks creation and validation errors through the typed tRPC HTTP client.
 The edit-page test checks server-rendered field values, refreshed data after an
 update and HTTP 404 responses for invalid or deleted task IDs.
+
+### Browser checks
+
+1. Open the empty list and select "New task". Submit a blank title and check
+   the field error and focus.
+2. Create a task, reload the list and check that its data remains visible.
+3. Edit its title, clear its description and save. Check that the creation date
+   remains unchanged.
+4. Cancel a deletion, then confirm it. Check the success message and empty list.
+5. Repeat navigation and form submission using the keyboard, and check the
+   pages at a narrow screen width.
+
+To check a network failure, load a form or task list, stop the server and submit
+an action. The form should retain its values; a failed deletion should retain
+the visible item. Both should show an error and re-enable the action. Restarting
+the server clears all tasks, as described under Storage.
 
 ## Task list
 
