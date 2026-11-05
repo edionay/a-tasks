@@ -4,6 +4,8 @@ import {
   taskCreationSchema,
   taskIdSchema,
   taskSchema,
+  taskPageInputSchema,
+  taskPageSchema,
 } from "@/lib/task-schema";
 import { createRouter, procedure } from "./trpc";
 
@@ -42,6 +44,11 @@ const tasksRouter = createRouter({
   list: procedure
     .output(taskSchema.array())
     .query(({ ctx: context }) => context.tasks.list()),
+
+  listPage: procedure
+    .input(taskPageInputSchema)
+    .output(taskPageSchema)
+    .query(({ ctx: context, input }) => context.tasks.listPage(input.cursor)),
 
   findById: procedure
     .input(taskIdSchema)

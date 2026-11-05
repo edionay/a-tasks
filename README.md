@@ -16,17 +16,15 @@ npm run dev
 
 Open http://localhost:3000.
 
-No environment variables or external services are required.
-
 ## Architecture
 
 Frontend and backend run in one Next.js application on Node.js. Next.js serves
-the pages and the tRPC HTTP endpoint, so no separate backend process is needed.
+the pages and the tRPC HTTP endpoint.
 
 - `src/app/`: routes, server-rendered pages and the HTTP handler at `/api/trpc`.
 - `src/components/`: task list, shared creation/edit form and delete button.
 - `src/lib/task-schema.ts`: Zod schemas and inferred types shared by client and server.
-- `src/lib/trpc-client.ts`: typed HTTP client for browser mutations.
+- `src/lib/trpc-client.ts`: typed HTTP client for browser queries and mutations.
 - `src/server/tasks-router.ts`: tRPC procedures and expected API errors.
 - `src/server/tasks-store.ts`: task operations and the shared in-memory store.
 - `src/server/trpc.ts`: server context and error formatting.
@@ -34,6 +32,7 @@ the pages and the tRPC HTTP endpoint, so no separate backend process is needed.
 Page requests load tasks through a server-side tRPC caller. Browser mutations
 use the HTTP endpoint and then refresh the server-rendered list. Both paths use
 the same store in the Node.js process. Task data is not cached in browser storage.
+Additional task pages are fetched through the HTTP client as the user scrolls.
 
 ## Checks
 
@@ -78,6 +77,9 @@ task after the test. To use another server address, set `TASKS_TEST_URL`.
 It also checks creation and validation errors through the typed tRPC HTTP client.
 The edit-page test checks server-rendered field values, refreshed data after an
 update and HTTP 404 responses for invalid or deleted task IDs.
+Pagination tests cover ten-item pages, ordering, deleted cursors and continuation
+without gaps or duplicates. The integration test also checks that only the first
+ten tasks are in the initial HTML and that subsequent pages are available over HTTP.
 
 ### Browser checks
 
@@ -89,6 +91,9 @@ update and HTTP 404 responses for invalid or deleted task IDs.
 4. Cancel a deletion, then confirm it. Check the success message and empty list.
 5. Repeat navigation and form submission using the keyboard, and check the
    pages at a narrow screen width.
+6. Create more than ten tasks, reload the list and scroll down. Check that more
+   tasks load and that each task appears once. The "Load more" button also works
+   with the keyboard. After the final page, the button disappears.
 
 To check a network failure, load a form or task list, stop the server and submit
 an action. The form should retain its values; a failed deletion should retain
@@ -99,7 +104,15 @@ the server clears all tasks, as described under Storage.
 
 The home page loads tasks on the server through a tRPC caller. Each request
 reads the same in-memory store used by the HTTP API. Titles, optional descriptions
-and creation dates are included in the initial HTML. Dates are displayed in UTC.
+and creation dates for the first ten tasks are included in the initial HTML.
+Dates are displayed in UTC.
+
+Scrolling near the end loads the next ten tasks. A "Load more" button supports
+keyboard use and browsers without IntersectionObserver. Loading is announced,
+and failed requests preserve the loaded tasks and show a "Try again" button.
+Creating, editing or deleting a task refreshes the first page and resets the
+pagination. Scrolling can then load further pages again. Tasks added by another
+browser appear after refreshing the list.
 
 ## Create tasks
 
@@ -173,6 +186,26 @@ curl http://localhost:3000/api/trpc/tasks.list
 ```
 
 The list is returned in `result.data`. An empty store returns `[]`.
+
+### Read a task page
+
+`tasks.listPage` is the query used by the interface. It accepts an empty object
+for the first page and returns `{ items, nextCursor? }` in `result.data`.
+Each page contains at most ten tasks in the same order as `tasks.list`.
+
+```sh
+curl --get http://localhost:3000/api/trpc/tasks.listPage \
+  --data-urlencode 'input={}'
+```
+
+For the next page, send `{ cursor: nextCursor }` using the cursor from the
+previous response. The cursor contains `id` and `dataCriacao`. If `nextCursor`
+is absent, the end of the list has been reached. Invalid cursors and unexpected
+input fields return HTTP 400 (`BAD_REQUEST`).
+
+The cursor records the position in the creation-date and ID ordering rather
+than an array offset. Deleting its task does not prevent continuation. Tasks
+inserted before that position are included when the first page is refreshed.
 
 ### Find a task by ID
 

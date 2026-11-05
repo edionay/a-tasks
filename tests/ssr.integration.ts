@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
 import { createTRPCClient, httpLink, TRPCClientError } from "@trpc/client";
-import { taskSchema } from "../src/lib/task-schema";
+import { taskSchema, type Task } from "../src/lib/task-schema";
 import type { AppRouter } from "../src/server/tasks-router";
 
 let serverUrl = "http://127.0.0.1:3000";
@@ -122,4 +122,39 @@ it("loads the edit form on the server and returns 404 for missing tasks", async 
     assert.ok(html.includes("Task not found"));
     assert.ok(html.includes("Back to tasks"));
   }
+});
+
+it("renders only the first ten tasks and serves the remaining pages over HTTP", async (context) => {
+  const client = createTRPCClient<AppRouter>({
+    links: [httpLink({ url: `${serverUrl}/api/trpc` })],
+  });
+  const created: Task[] = [];
+  context.after(async () => {
+    for (const task of created) {
+      const response = await sendMutation("tasks.delete", { id: task.id });
+      assert.ok(response.status === 200 || response.status === 404);
+    }
+  });
+  for (let index = 0; index < 25; index += 1) {
+    created.push(await client.tasks.create.mutate({ titulo: `Paged task ${randomUUID()}` }));
+  }
+  const first = await client.tasks.listPage.query({});
+  assert.equal(first.items.length, 10);
+  assert.ok(first.nextCursor);
+  const html = await loadMainContent();
+  assert.equal((html.match(/<h2\b/g) ?? []).length, 10);
+  for (const task of first.items) assert.ok(html.includes(task.titulo));
+
+  const second = await client.tasks.listPage.query({ cursor: first.nextCursor });
+  assert.equal(second.items.length, 10);
+  assert.ok(second.nextCursor);
+  const firstIds = new Set(first.items.map((task) => task.id));
+  for (const task of second.items) {
+    assert.equal(firstIds.has(task.id), false);
+    assert.equal(html.includes(task.titulo), false);
+  }
+  const third = await client.tasks.listPage.query({ cursor: second.nextCursor });
+  assert.ok(third.items.length >= 5);
+  const loadedIds = new Set([...first.items, ...second.items, ...third.items].map((task) => task.id));
+  for (const task of created) assert.ok(loadedIds.has(task.id));
 });
