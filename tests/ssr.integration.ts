@@ -67,6 +67,7 @@ it("renders HTTP mutations in the initial page HTML", async (context) => {
   assert.ok(initial.includes(description));
   assert.ok(initial.includes(task.dataCriacao));
   assert.ok(initial.includes("UTC"));
+  assert.ok(initial.includes(`aria-label="Delete ${title}"`));
 
   const newTitle = `Updated ${title}`;
   const updateResult = await sendMutation("tasks.update", {

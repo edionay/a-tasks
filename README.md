@@ -86,6 +86,13 @@ save preserves the entered values. An invalid or missing task ID shows a
 "Task not found" page with a link back to the list. If a task is deleted while
 its form is open, saving displays the API error without discarding the input.
 
+## Delete tasks
+
+Select "Delete" on a task and confirm in the browser dialog. Canceling leaves
+the task unchanged. The button is disabled while the request is pending.
+After deletion, the list refreshes and shows a confirmation message. A failed
+request leaves the task visible, displays an error and allows another attempt.
+
 ## Task data
 
 Schemas and input rules live in `src/lib/task-schema.ts`.
