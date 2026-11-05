@@ -20,6 +20,11 @@ export default async function Home({ searchParams }: Props) {
         <Link href="/tasks/new" className="rounded-lg bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">New task</Link>
       </div>
       {parameters.notice === "created" && <p role="status" className="mt-6 rounded-lg border border-green-700 bg-green-50 p-3 text-green-900">Task created.</p>}
+      {parameters.notice === "updated" && (
+        <p role="status" className="mt-6 rounded-lg border border-green-700 bg-green-50 p-3 text-green-900">
+          Task updated.
+        </p>
+      )}
       <TaskList tasks={tasks} />
     </main>
   );

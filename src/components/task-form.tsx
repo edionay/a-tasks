@@ -8,15 +8,17 @@ import {
   DESCRIPTION_LIMIT,
   TITLE_LIMIT,
   taskCreationSchema,
+  type Task,
 } from "@/lib/task-schema";
 import { trpcClient } from "@/lib/trpc-client";
 
 type FieldErrors = { titulo?: string[]; descricao?: string[] };
+type Props = { task?: Task };
 
-export function TaskForm() {
+export function TaskForm({ task }: Props) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState(task?.titulo ?? "");
+  const [description, setDescription] = useState(task?.descricao ?? "");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submissionError, setSubmissionError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -47,8 +49,13 @@ export function TaskForm() {
     setSaving(true);
 
     try {
-      await trpcClient.tasks.create.mutate(validation.data);
-      router.replace("/?notice=created");
+      if (task) {
+        await trpcClient.tasks.update.mutate({ id: task.id, ...validation.data });
+        router.replace("/?notice=updated");
+      } else {
+        await trpcClient.tasks.create.mutate(validation.data);
+        router.replace("/?notice=created");
+      }
       router.refresh();
     } catch (error) {
       let message = "Unable to save the task. Check your connection and try again.";
