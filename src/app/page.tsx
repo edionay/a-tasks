@@ -25,6 +25,11 @@ export default async function Home({ searchParams }: Props) {
           Task updated.
         </p>
       )}
+      {parameters.notice === "deleted" && (
+        <p role="status" className="mt-6 rounded-lg border border-green-700 bg-green-50 p-3 text-green-900">
+          Task deleted.
+        </p>
+      )}
       <TaskList tasks={tasks} />
     </main>
   );

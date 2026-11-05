@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteTaskButton } from "@/components/delete-task-button";
 import type { Task } from "@/lib/task-schema";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -47,13 +48,16 @@ export function TaskList({ tasks }: Props) {
                 {dateFormatter.format(new Date(task.dataCriacao))} UTC
               </time>
             </p>
-            <Link
-              href={`/tasks/${task.id}/edit`}
-              aria-label={`Edit ${task.titulo}`}
-              className="mt-4 inline-block rounded-lg border border-slate-400 px-4 py-2 text-sm font-medium hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-            >
-              Edit
-            </Link>
+            <div className="mt-4 flex flex-wrap items-start gap-3">
+              <Link
+                href={`/tasks/${task.id}/edit`}
+                aria-label={`Edit ${task.titulo}`}
+                className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-medium hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              >
+                Edit
+              </Link>
+              <DeleteTaskButton task={task} />
+            </div>
           </article>
         </li>
       ))}
