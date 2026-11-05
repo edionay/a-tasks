@@ -1,250 +1,250 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { schemaTarefa } from "@/lib/tarefa-schema";
-import { appRouter } from "@/server/tarefas-router";
-import { criarArmazenamentoTarefas } from "@/server/tarefas-store";
+import { taskSchema } from "@/lib/task-schema";
+import { appRouter } from "@/server/tasks-router";
+import { createTaskStore } from "@/server/tasks-store";
 import { GET, POST } from "./route";
 
-function criarRequisicao(entrada: unknown, operacao = "tarefas.criar") {
-  return new Request(`http://localhost/api/trpc/${operacao}`, {
+function createRequest(input: unknown, operation = "tasks.create") {
+  return new Request(`http://localhost/api/trpc/${operation}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(entrada),
+    body: JSON.stringify(input),
   });
 }
 
 describe("task creation over HTTP", () => {
   it("creates a task through POST and disables response caching", async () => {
-    const resposta = await POST(criarRequisicao({ titulo: "  Review the contract  " }));
-    const corpo = await resposta.json();
-    const tarefa = schemaTarefa.parse(corpo.result.data);
+    const response = await POST(createRequest({ titulo: "  Review the contract  " }));
+    const body = await response.json();
+    const task = taskSchema.parse(body.result.data);
 
-    assert.equal(resposta.status, 200);
-    assert.equal(resposta.headers.get("cache-control"), "no-store");
-    assert.equal(tarefa.titulo, "Review the contract");
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(task.titulo, "Review the contract");
   });
 
   it("returns an English message and field error without a stack trace", async () => {
-    const resposta = await POST(criarRequisicao({ titulo: "  " }));
-    const corpo = await resposta.json();
+    const response = await POST(createRequest({ titulo: "  " }));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 400);
-    assert.equal(corpo.error.data.code, "BAD_REQUEST");
-    assert.equal(corpo.error.message, "Enter a title.");
-    assert.deepEqual(corpo.error.data.errosCampos.titulo, ["Enter a title."]);
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 400);
+    assert.equal(body.error.data.code, "BAD_REQUEST");
+    assert.equal(body.error.message, "Enter a title.");
+    assert.deepEqual(body.error.data.fieldErrors.titulo, ["Enter a title."]);
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("rejects malformed JSON with a readable message", async () => {
-    const resposta = await POST(
-      new Request("http://localhost/api/trpc/tarefas.criar", {
+    const response = await POST(
+      new Request("http://localhost/api/trpc/tasks.create", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{",
       }),
     );
-    const corpo = await resposta.json();
+    const body = await response.json();
 
-    assert.equal(resposta.status, 400);
-    assert.equal(corpo.error.message, "Invalid request.");
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 400);
+    assert.equal(body.error.message, "Invalid request.");
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("does not allow task creation through GET", async () => {
-    const resposta = await GET(new Request("http://localhost/api/trpc/tarefas.criar"));
+    const response = await GET(new Request("http://localhost/api/trpc/tasks.create"));
 
-    assert.equal(resposta.status, 405);
+    assert.equal(response.status, 405);
   });
 
   it("hides internal details when the store fails", async () => {
-    const resposta = await fetchRequestHandler({
+    const response = await fetchRequestHandler({
       endpoint: "/api/trpc",
-      req: criarRequisicao({ titulo: "Review the contract" }),
+      req: createRequest({ titulo: "Review the contract" }),
       router: appRouter,
       createContext: () => ({
-        tarefas: {
-          ...criarArmazenamentoTarefas(),
-          criar() {
+        tasks: {
+          ...createTaskStore(),
+          create() {
             throw new Error("Internal store details.");
           },
         },
       }),
     });
-    const texto = await resposta.text();
-    const corpo = JSON.parse(texto);
+    const text = await response.text();
+    const body = JSON.parse(text);
 
-    assert.equal(resposta.status, 500);
-    assert.equal(corpo.error.message, "Unable to process the request.");
-    assert.equal(texto.includes("Internal store"), false);
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 500);
+    assert.equal(body.error.message, "Unable to process the request.");
+    assert.equal(text.includes("Internal store"), false);
+    assert.equal("stack" in body.error.data, false);
   });
 });
 
 describe("task reads over HTTP", () => {
   it("lists and retrieves tasks created by another request", async () => {
-    const criacao = await POST(criarRequisicao({ titulo: "Check task reads" }));
-    const corpoCriacao = await criacao.json();
-    const tarefa = schemaTarefa.parse(corpoCriacao.result.data);
+    const creation = await POST(createRequest({ titulo: "Check task reads" }));
+    const creationBody = await creation.json();
+    const task = taskSchema.parse(creationBody.result.data);
 
-    const listagem = await GET(new Request("http://localhost/api/trpc/tarefas.listar"));
-    const corpoListagem = await listagem.json();
-    const tarefas = schemaTarefa.array().parse(corpoListagem.result.data);
+    const taskList = await GET(new Request("http://localhost/api/trpc/tasks.list"));
+    const listBody = await taskList.json();
+    const tasks = taskSchema.array().parse(listBody.result.data);
 
-    assert.equal(listagem.status, 200);
-    assert.equal(listagem.headers.get("cache-control"), "no-store");
-    assert.deepEqual(tarefas.find((item) => item.id === tarefa.id), tarefa);
+    assert.equal(taskList.status, 200);
+    assert.equal(taskList.headers.get("cache-control"), "no-store");
+    assert.deepEqual(tasks.find((item) => item.id === task.id), task);
 
-    const parametros = new URLSearchParams({ input: JSON.stringify({ id: tarefa.id }) });
-    const consulta = await GET(
-      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    const parameters = new URLSearchParams({ input: JSON.stringify({ id: task.id }) });
+    const lookup = await GET(
+      new Request(`http://localhost/api/trpc/tasks.findById?${parameters}`),
     );
-    const corpoConsulta = await consulta.json();
+    const lookupBody = await lookup.json();
 
-    assert.equal(consulta.status, 200);
-    assert.deepEqual(corpoConsulta.result.data, tarefa);
+    assert.equal(lookup.status, 200);
+    assert.deepEqual(lookupBody.result.data, task);
   });
 
   it("returns HTTP 404 for a UUID with no task", async () => {
-    const parametros = new URLSearchParams({
+    const parameters = new URLSearchParams({
       input: JSON.stringify({ id: "550e8400-e29b-41d4-a716-446655440000" }),
     });
-    const resposta = await GET(
-      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    const response = await GET(
+      new Request(`http://localhost/api/trpc/tasks.findById?${parameters}`),
     );
-    const corpo = await resposta.json();
+    const body = await response.json();
 
-    assert.equal(resposta.status, 404);
-    assert.equal(corpo.error.data.code, "NOT_FOUND");
-    assert.equal(corpo.error.message, "Task not found.");
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 404);
+    assert.equal(body.error.data.code, "NOT_FOUND");
+    assert.equal(body.error.message, "Task not found.");
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("returns HTTP 400 for an invalid ID", async () => {
-    const parametros = new URLSearchParams({ input: JSON.stringify({ id: "invalid" }) });
-    const resposta = await GET(
-      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    const parameters = new URLSearchParams({ input: JSON.stringify({ id: "invalid" }) });
+    const response = await GET(
+      new Request(`http://localhost/api/trpc/tasks.findById?${parameters}`),
     );
-    const corpo = await resposta.json();
+    const body = await response.json();
 
-    assert.equal(resposta.status, 400);
-    assert.equal(corpo.error.data.code, "BAD_REQUEST");
-    assert.equal(corpo.error.message, "Enter a valid task ID.");
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 400);
+    assert.equal(body.error.data.code, "BAD_REQUEST");
+    assert.equal(body.error.message, "Enter a valid task ID.");
+    assert.equal("stack" in body.error.data, false);
   });
 });
 
 describe("task updates over HTTP", () => {
   it("updates an existing task and persists the result across requests", async () => {
-    const criacao = await POST(criarRequisicao({ titulo: "Original title" }));
-    const corpoCriacao = await criacao.json();
-    const original = schemaTarefa.parse(corpoCriacao.result.data);
+    const creation = await POST(createRequest({ titulo: "Original title" }));
+    const creationBody = await creation.json();
+    const original = taskSchema.parse(creationBody.result.data);
 
-    const resposta = await POST(criarRequisicao({
+    const response = await POST(createRequest({
       id: original.id,
       titulo: "  Updated title  ",
       descricao: "Updated description",
-    }, "tarefas.atualizar"));
-    const corpo = await resposta.json();
-    const atualizada = schemaTarefa.parse(corpo.result.data);
+    }, "tasks.update"));
+    const body = await response.json();
+    const updated = taskSchema.parse(body.result.data);
 
-    assert.equal(resposta.status, 200);
-    assert.deepEqual(atualizada, {
+    assert.equal(response.status, 200);
+    assert.deepEqual(updated, {
       ...original,
       titulo: "Updated title",
       descricao: "Updated description",
     });
 
-    const parametros = new URLSearchParams({ input: JSON.stringify({ id: original.id }) });
-    const consulta = await GET(
-      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    const parameters = new URLSearchParams({ input: JSON.stringify({ id: original.id }) });
+    const lookup = await GET(
+      new Request(`http://localhost/api/trpc/tasks.findById?${parameters}`),
     );
-    const corpoConsulta = await consulta.json();
-    assert.deepEqual(corpoConsulta.result.data, atualizada);
+    const lookupBody = await lookup.json();
+    assert.deepEqual(lookupBody.result.data, updated);
   });
 
   it("returns HTTP 404 when updating a missing task", async () => {
-    const resposta = await POST(criarRequisicao({
+    const response = await POST(createRequest({
       id: "550e8400-e29b-41d4-a716-446655440000",
       titulo: "Updated title",
-    }, "tarefas.atualizar"));
-    const corpo = await resposta.json();
+    }, "tasks.update"));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 404);
-    assert.equal(corpo.error.message, "Task not found.");
-    assert.equal(corpo.error.data.code, "NOT_FOUND");
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 404);
+    assert.equal(body.error.message, "Task not found.");
+    assert.equal(body.error.data.code, "NOT_FOUND");
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("returns HTTP 400 with a field error for invalid update input", async () => {
-    const resposta = await POST(criarRequisicao({
+    const response = await POST(createRequest({
       id: "550e8400-e29b-41d4-a716-446655440000",
       titulo: "  ",
-    }, "tarefas.atualizar"));
-    const corpo = await resposta.json();
+    }, "tasks.update"));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 400);
-    assert.equal(corpo.error.data.code, "BAD_REQUEST");
-    assert.deepEqual(corpo.error.data.errosCampos.titulo, ["Enter a title."]);
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 400);
+    assert.equal(body.error.data.code, "BAD_REQUEST");
+    assert.deepEqual(body.error.data.fieldErrors.titulo, ["Enter a title."]);
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("does not allow task updates through GET", async () => {
-    const resposta = await GET(new Request("http://localhost/api/trpc/tarefas.atualizar"));
+    const response = await GET(new Request("http://localhost/api/trpc/tasks.update"));
 
-    assert.equal(resposta.status, 405);
+    assert.equal(response.status, 405);
   });
 });
 
 describe("task deletion over HTTP", () => {
   it("deletes a task through POST and removes it from subsequent reads", async () => {
-    const criacao = await POST(criarRequisicao({ titulo: "Task to delete" }));
-    const corpoCriacao = await criacao.json();
-    const tarefa = schemaTarefa.parse(corpoCriacao.result.data);
+    const creation = await POST(createRequest({ titulo: "Task to delete" }));
+    const creationBody = await creation.json();
+    const task = taskSchema.parse(creationBody.result.data);
 
-    const resposta = await POST(criarRequisicao({ id: tarefa.id }, "tarefas.excluir"));
-    const corpo = await resposta.json();
+    const response = await POST(createRequest({ id: task.id }, "tasks.delete"));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 200);
-    assert.deepEqual(corpo.result.data, { id: tarefa.id });
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.result.data, { id: task.id });
 
-    const listagem = await GET(new Request("http://localhost/api/trpc/tarefas.listar"));
-    const corpoListagem = await listagem.json();
-    const tarefas = schemaTarefa.array().parse(corpoListagem.result.data);
-    assert.equal(tarefas.some((item) => item.id === tarefa.id), false);
+    const taskList = await GET(new Request("http://localhost/api/trpc/tasks.list"));
+    const listBody = await taskList.json();
+    const tasks = taskSchema.array().parse(listBody.result.data);
+    assert.equal(tasks.some((item) => item.id === task.id), false);
 
-    const parametros = new URLSearchParams({ input: JSON.stringify({ id: tarefa.id }) });
-    const consulta = await GET(
-      new Request(`http://localhost/api/trpc/tarefas.buscarPorId?${parametros}`),
+    const parameters = new URLSearchParams({ input: JSON.stringify({ id: task.id }) });
+    const lookup = await GET(
+      new Request(`http://localhost/api/trpc/tasks.findById?${parameters}`),
     );
-    assert.equal(consulta.status, 404);
+    assert.equal(lookup.status, 404);
   });
 
   it("returns HTTP 404 when deleting a missing task", async () => {
-    const resposta = await POST(criarRequisicao({
+    const response = await POST(createRequest({
       id: "550e8400-e29b-41d4-a716-446655440000",
-    }, "tarefas.excluir"));
-    const corpo = await resposta.json();
+    }, "tasks.delete"));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 404);
-    assert.equal(corpo.error.data.code, "NOT_FOUND");
-    assert.equal(corpo.error.message, "Task not found.");
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 404);
+    assert.equal(body.error.data.code, "NOT_FOUND");
+    assert.equal(body.error.message, "Task not found.");
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("returns HTTP 400 for an invalid deletion ID", async () => {
-    const resposta = await POST(criarRequisicao({ id: "invalid" }, "tarefas.excluir"));
-    const corpo = await resposta.json();
+    const response = await POST(createRequest({ id: "invalid" }, "tasks.delete"));
+    const body = await response.json();
 
-    assert.equal(resposta.status, 400);
-    assert.equal(corpo.error.data.code, "BAD_REQUEST");
-    assert.deepEqual(corpo.error.data.errosCampos.id, ["Enter a valid task ID."]);
-    assert.equal("stack" in corpo.error.data, false);
+    assert.equal(response.status, 400);
+    assert.equal(body.error.data.code, "BAD_REQUEST");
+    assert.deepEqual(body.error.data.fieldErrors.id, ["Enter a valid task ID."]);
+    assert.equal("stack" in body.error.data, false);
   });
 
   it("does not allow task deletion through GET", async () => {
-    const resposta = await GET(new Request("http://localhost/api/trpc/tarefas.excluir"));
+    const response = await GET(new Request("http://localhost/api/trpc/tasks.delete"));
 
-    assert.equal(resposta.status, 405);
+    assert.equal(response.status, 405);
   });
 });

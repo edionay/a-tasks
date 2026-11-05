@@ -1,15 +1,15 @@
-import type { Tarefa } from "@/lib/tarefa-schema";
+import type { Task } from "@/lib/task-schema";
 
-const formatadorData = new Intl.DateTimeFormat("en-GB", {
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "UTC",
 });
 
-type Propriedades = { tarefas: Tarefa[] };
+type Props = { tasks: Task[] };
 
-export function ListaTarefas({ tarefas }: Propriedades) {
-  if (tarefas.length === 0) {
+export function TaskList({ tasks }: Props) {
+  if (tasks.length === 0) {
     return (
       <section
         aria-label="Task list"
@@ -23,27 +23,27 @@ export function ListaTarefas({ tarefas }: Propriedades) {
 
   return (
     <ul aria-label="Task list" className="mt-8 space-y-4">
-      {tarefas.map((tarefa) => (
-        <li key={tarefa.id}>
+      {tasks.map((task) => (
+        <li key={task.id}>
           <article
-            aria-labelledby={`task-${tarefa.id}`}
+            aria-labelledby={`task-${task.id}`}
             className="rounded-xl border border-slate-200 bg-white p-6"
           >
             <h2
-              id={`task-${tarefa.id}`}
+              id={`task-${task.id}`}
               className="text-lg font-semibold wrap-anywhere"
             >
-              {tarefa.titulo}
+              {task.titulo}
             </h2>
-            {tarefa.descricao && (
+            {task.descricao && (
               <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-slate-600 wrap-anywhere">
-                {tarefa.descricao}
+                {task.descricao}
               </p>
             )}
             <p className="mt-4 text-xs text-slate-500">
               Created{" "}
-              <time dateTime={tarefa.dataCriacao}>
-                {formatadorData.format(new Date(tarefa.dataCriacao))} UTC
+              <time dateTime={task.dataCriacao}>
+                {dateFormatter.format(new Date(task.dataCriacao))} UTC
               </time>
             </p>
           </article>
