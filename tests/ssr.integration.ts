@@ -84,3 +84,41 @@ it("renders HTTP mutations in the initial page HTML", async (context) => {
   const final = await loadMainContent();
   assert.ok(!final.includes(task.id));
 });
+
+it("loads the edit form on the server and returns 404 for missing tasks", async (context) => {
+  const client = createTRPCClient<AppRouter>({
+    links: [httpLink({ url: `${serverUrl}/api/trpc` })],
+  });
+  const title = `Editable task ${randomUUID()}`;
+  const task = await client.tasks.create.mutate({
+    titulo: title,
+    descricao: "Existing description.",
+  });
+  context.after(async () => {
+    const response = await sendMutation("tasks.delete", { id: task.id });
+    assert.ok(response.status === 200 || response.status === 404);
+  });
+
+  const editUrl = `${serverUrl}/tasks/${task.id}/edit`;
+  const initial = await fetch(editUrl);
+  assert.equal(initial.status, 200);
+  const initialHtml = await initial.text();
+  assert.ok(initialHtml.includes(`value="${title}"`));
+  assert.match(initialHtml, /<textarea[^>]*>Existing description\.<\/textarea>/);
+  assert.ok((await loadMainContent()).includes(`href="/tasks/${task.id}/edit"`));
+
+  const updated = await client.tasks.update.mutate({ id: task.id, titulo: "Updated task" });
+  assert.equal(updated.dataCriacao, task.dataCriacao);
+  const refreshedHtml = await (await fetch(editUrl)).text();
+  assert.ok(refreshedHtml.includes('value="Updated task"'));
+  assert.match(refreshedHtml, /<textarea[^>]*><\/textarea>/);
+
+  await client.tasks.delete.mutate({ id: task.id });
+  for (const url of [editUrl, `${serverUrl}/tasks/invalid/edit`]) {
+    const missing = await fetch(url);
+    assert.equal(missing.status, 404);
+    const html = await missing.text();
+    assert.ok(html.includes("Task not found"));
+    assert.ok(html.includes("Back to tasks"));
+  }
+});

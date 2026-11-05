@@ -57,6 +57,8 @@ The test creates a temporary task through HTTP, checks its title, description
 and date in the initial page HTML, then updates and deletes it. It removes the
 task after the test. To use another server address, set `TASKS_TEST_URL`.
 It also checks creation and validation errors through the typed tRPC HTTP client.
+The edit-page test checks server-rendered field values, refreshed data after an
+update and HTTP 404 responses for invalid or deleted task IDs.
 
 ## Task list
 
@@ -71,6 +73,18 @@ with the same schemas used by the server. Saving sends a tRPC HTTP mutation,
 disables the form while the request is pending and returns to the updated list
 with a confirmation message. If saving fails, the entered values remain available
 for another attempt. "Cancel" returns to the list without saving.
+
+## Edit tasks
+
+Select "Edit" on a task to open its form at `/tasks/<id>/edit`. The server loads
+the current title and description before rendering the page. Saving replaces the
+editable fields, keeps the ID and creation date and returns to the updated list
+with a confirmation message. Clearing the description removes its text.
+
+Editing uses the same validation and submission handling as creation. A failed
+save preserves the entered values. An invalid or missing task ID shows a
+"Task not found" page with a link back to the list. If a task is deleted while
+its form is open, saving displays the API error without discarding the input.
 
 ## Task data
 

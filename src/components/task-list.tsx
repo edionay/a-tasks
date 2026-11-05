@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Task } from "@/lib/task-schema";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -46,6 +47,13 @@ export function TaskList({ tasks }: Props) {
                 {dateFormatter.format(new Date(task.dataCriacao))} UTC
               </time>
             </p>
+            <Link
+              href={`/tasks/${task.id}/edit`}
+              aria-label={`Edit ${task.titulo}`}
+              className="mt-4 inline-block rounded-lg border border-slate-400 px-4 py-2 text-sm font-medium hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+            >
+              Edit
+            </Link>
           </article>
         </li>
       ))}
